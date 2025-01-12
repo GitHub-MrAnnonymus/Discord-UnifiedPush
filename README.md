@@ -1,6 +1,8 @@
 # Discord-UnifiedPush
 This repository hosts an Android app and its Linux backend for receiving UnifiedPush notifications for Discord.
 
+**Thanks to charles8191 for making Discord WebView for Android**
+
 ## **Backstory**
 I am currently using a degoogled Android phone as my daily driver, and apps relying on FCM for their notifications became annoying. Most of my apps already support UnifiedPush as a protocol, so I implemented it for Discord. I'm pretty new to Android development, and this project will be a learning experience as I go (don't expect much).
 
