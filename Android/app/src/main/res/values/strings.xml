@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Discord</string>
+    <string name="unified_push_url">UnifiedPush URL: %1$s</string>
+    <string name="unified_push_failed">Failed to initialize UnifiedPush distributor</string>
+</resources>
