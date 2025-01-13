@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import android.view.WindowManager
 
 
 class MainActivity : AppCompatActivity() {
@@ -25,8 +26,8 @@ class MainActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        pushHelper = UnifiedPushHelper.getInstance(this)
         
+        pushHelper = UnifiedPushHelper.getInstance(this)
         preferencesManager = PreferencesManager(this)
         
         if (preferencesManager.isFirstLaunch()) {
@@ -44,7 +45,7 @@ class MainActivity : AppCompatActivity() {
         
         // Add padding for system bars using ViewCompat
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { view, windowInsets ->
-            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
             view.setPadding(0, insets.top, 0, insets.bottom)
             WindowInsetsCompat.CONSUMED
         }
@@ -58,6 +59,7 @@ class MainActivity : AppCompatActivity() {
         webSettings.domStorageEnabled = true
         webSettings.allowFileAccess = true
         webSettings.mediaPlaybackRequiresUserGesture = false
+        
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
                 request.grant(request.resources)
