@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "to.us.charlesst.discord"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "to.us.charlesst.discord"
         minSdk = 31
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 110
         versionName = "1.1.0"
 

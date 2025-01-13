@@ -1,6 +1,8 @@
 package to.us.charlesst.discord
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.webkit.CookieManager
@@ -11,7 +13,9 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 
 
 class MainActivity : AppCompatActivity() {
@@ -31,61 +35,69 @@ class MainActivity : AppCompatActivity() {
             return
         }
         
-        window.statusBarColor = ContextCompat.getColor(this, R.color.blurple)
+        // Set up window insets
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        
         setContentView(R.layout.activity_main)
+        
+        // Add padding for system bars using ViewCompat
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(0, insets.top, 0, insets.bottom)
+            WindowInsetsCompat.CONSUMED
+        }
+        
         val webView: WebView = findViewById(R.id.webview)
-        CookieManager.getInstance().setAcceptCookie(true) // for Cloudflare
-        val webSettings: WebSettings = webView.getSettings()
-        webView.settings.javaScriptEnabled = true // for obvious reasons, Discord is a JS-heavy app
+        CookieManager.getInstance().setAcceptCookie(true)
+        val webSettings: WebSettings = webView.settings
+        webView.settings.javaScriptEnabled = true
         webView.webViewClient = WebViewClient()
-        webView.settings.userAgentString = "Android (+https://github.com/charles8191/discord)" // prevent fingerprinting by user-agent
-        webSettings.setDomStorageEnabled(true) // used for tokens
-        webSettings.setAllowFileAccess(true) // allow file picker
-        webSettings.mediaPlaybackRequiresUserGesture = false // fix loading animation
+        webView.settings.userAgentString = "Android (+https://github.com/charles8191/discord)"
+        webSettings.domStorageEnabled = true
+        webSettings.allowFileAccess = true
+        webSettings.mediaPlaybackRequiresUserGesture = false
         webView.webChromeClient = object : WebChromeClient() {
-        override fun onPermissionRequest(request: PermissionRequest) {
-            request.grant(request.resources)
-        }
-
-        override fun onShowFileChooser(
-            vw: WebView,
-            filePathCallback: ValueCallback<Array<Uri>>,
-            fileChooserParams: FileChooserParams
-        ): Boolean {
-            fileChooserCallback?.onReceiveValue(null)
-            fileChooserCallback = filePathCallback
-
-            val selectionIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
+            override fun onPermissionRequest(request: PermissionRequest) {
+                request.grant(request.resources)
             }
-
-            val chooserIntent = Intent(Intent.ACTION_CHOOSER).apply {
-                putExtra(Intent.EXTRA_INTENT, selectionIntent)
+            
+            override fun onShowFileChooser(
+                webView: WebView,
+                filePathCallback: ValueCallback<Array<Uri>>,
+                fileChooserParams: FileChooserParams
+            ): Boolean {
+                fileChooserCallback = filePathCallback
+                val intent = fileChooserParams.createIntent()
+                try {
+                    startActivityForResult(intent, 0)
+                } catch (e: ActivityNotFoundException) {
+                    fileChooserCallback = null
+                    return false
+                }
+                return true
             }
-
-            startActivityForResult(chooserIntent, 0)
-            return true
         }
-        }
-
+        
         // Handle deep linking
         intent?.data?.let { uri ->
             webView.loadUrl(uri.toString())
         } ?: webView.loadUrl("https://discord.com/app")
     }
-    override fun onBackPressed() { // fix back button
+    
+    override fun onBackPressed() {
         val webView: WebView = findViewById(R.id.webview)
         if (webView.canGoBack()) {
             webView.goBack()
-        }
-        else {
+        } else {
             super.onBackPressed()
         }
     }
+    
     override fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
         super.onActivityResult(requestCode, resultCode, intent)
-
+        
         if (requestCode == 0 && resultCode == RESULT_OK && intent != null && intent.data != null) {
             fileChooserCallback?.onReceiveValue(arrayOf(Uri.parse(intent.dataString)))
         } else {

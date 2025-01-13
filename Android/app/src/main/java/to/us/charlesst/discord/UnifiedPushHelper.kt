@@ -86,6 +86,10 @@ class UnifiedPushHelper private constructor(context: Context) {
     }
 
     private fun showNotification(title: String, content: String, channelId: String, guildId: String) {
+        if (AppLifecycleTracker.isAppInForeground) {
+            return
+        }
+
         val intent = Intent(getContext(), MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             data = Uri.parse(buildDiscordUrl(channelId, guildId))
