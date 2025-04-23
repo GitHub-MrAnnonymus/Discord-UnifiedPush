@@ -50,6 +50,9 @@ class MainActivity : AppCompatActivity() {
             WindowInsetsCompat.CONSUMED
         }
         
+        // Initialize notification helpers
+        NotificationHelper.createNotificationChannel(this)
+        
         val webView: WebView = findViewById(R.id.webview)
         CookieManager.getInstance().setAcceptCookie(true)
         val webSettings: WebSettings = webView.settings

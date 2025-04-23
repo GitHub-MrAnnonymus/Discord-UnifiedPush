@@ -13,7 +13,16 @@
         android:text="Discord UnifiedPush Setup"
         android:textSize="24sp"
         android:textColor="@color/discord_text"
-        android:layout_marginBottom="32dp"/>
+        android:layout_marginBottom="16dp"/>
+        
+    <TextView
+        android:id="@+id/statusTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Registering with UnifiedPush..."
+        android:textColor="@color/discord_text"
+        android:gravity="center"
+        android:layout_marginBottom="16dp"/>
 
     <TextView
         android:id="@+id/upUrlTextView"
@@ -33,6 +42,24 @@
         android:enabled="false"
         android:text="Copy URL"
         android:visibility="visible" />
+        
+    <Button
+        android:id="@+id/retryButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="@color/blurple"
+        android:text="Retry Registration"
+        android:visibility="gone" />
+        
+    <Button
+        android:id="@+id/selectDistributorButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="@color/blurple"
+        android:text="Select Different Distributor"
+        android:visibility="gone" />
 
     <Button
         android:id="@+id/continueButton"

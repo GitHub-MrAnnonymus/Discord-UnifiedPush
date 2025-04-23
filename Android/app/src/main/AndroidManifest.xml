@@ -3,6 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    
     <application
         android:name=".DiscordApplication"
         android:allowBackup="true"
@@ -27,25 +30,7 @@
         <activity
             android:name=".SetupActivity"
             android:exported="false" />
-        <receiver 
-            android:name="org.unifiedpush.android.connector.RegisterResponseReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="org.unifiedpush.android.connector.MESSAGE"/>
-            </intent-filter>
-        </receiver>
-
-        <receiver 
-            android:name=".UnifiedPushReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="org.unifiedpush.android.connector.MESSAGE"/>
-                <action android:name="org.unifiedpush.android.connector.UNREGISTERED"/>
-                <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT"/>
-                <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED"/>
-            </intent-filter>
-        </receiver>
-
+            
         <receiver 
             android:name=".PushServiceImpl"
             android:exported="true">
@@ -54,10 +39,16 @@
                 <action android:name="org.unifiedpush.android.connector.UNREGISTERED"/>
                 <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT"/>
                 <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED"/>
-                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT"/>
-                <action android:name="org.unifiedpush.android.connector.REGISTER"/>
             </intent-filter>
         </receiver>
+        
+        <service
+            android:name="org.unifiedpush.android.connector.RaiseToForegroundService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.RAISE_TO_FOREGROUND"/>
+            </intent-filter>
+        </service>
 
         <activity
             android:name=".UnifiedPushConfigScreen"
