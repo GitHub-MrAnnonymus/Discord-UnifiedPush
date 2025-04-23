@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
@@ -272,6 +273,15 @@ class UnifiedPushHelper private constructor(context: Context) {
             return
         }
 
+        // Play notification sound
+        try {
+            val mediaPlayer = MediaPlayer.create(getContext(), R.raw.discord_notification)
+            mediaPlayer.setOnCompletionListener { mp -> mp.release() }
+            mediaPlayer.start()
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error playing notification sound", e)
+        }
+
         val intent = Intent(getContext(), MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             data = buildDiscordUrl(channelId, guildId).toUri()
@@ -291,8 +301,8 @@ class UnifiedPushHelper private constructor(context: Context) {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setGroup("discord_notifications")
-            .setGroupSummary(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .build()
 
         // Using a fixed notification ID ensures we replace existing notifications
@@ -341,11 +351,11 @@ class UnifiedPushHelper private constructor(context: Context) {
     }
 
     private fun createNotificationChannel() {
-        val soundUri = ("android.resource://" + getContext().packageName + "/raw/notification").toUri()
+        val soundUri = ("android.resource://" + getContext().packageName + "/raw/discord_notification").toUri()
         
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
             .build()
             
         val channel = NotificationChannel(
@@ -357,8 +367,10 @@ class UnifiedPushHelper private constructor(context: Context) {
             enableLights(true)
             lightColor = Color.BLUE
             enableVibration(true)
+            vibrationPattern = longArrayOf(0, 250, 250, 250)
             setShowBadge(true)
             setSound(soundUri, audioAttributes)
+            setBypassDnd(true)
         }
         notificationManager.createNotificationChannel(channel)
     }
