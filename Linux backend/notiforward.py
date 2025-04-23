@@ -23,8 +23,13 @@ def setup_logging(enabled=True):
         logging.getLogger().setLevel(logging.WARNING)
         return
         
-    # Use /var/log/notiforward.log when running as a service
-    log_file = '/var/log/notiforward.log' if args.service_mode else 'notiforward.log'
+    # Use user log file when running as a service
+    if args.service_mode:
+        log_dir = Path.home() / '.local' / 'log'
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / 'notiforward.log'
+    else:
+        log_file = 'notiforward.log'
     
     logging.basicConfig(
         level=logging.DEBUG,
@@ -37,33 +42,48 @@ def setup_logging(enabled=True):
 
 def uninstall():
     try:
-        # Stop and disable systemd service
-        subprocess.run(['sudo', 'systemctl', 'stop', 'notiforward.service'], check=True)
-        subprocess.run(['sudo', 'systemctl', 'disable', 'notiforward.service'], check=True)
+        # Stop and disable user-level systemd service
+        subprocess.run(['systemctl', '--user', 'stop', 'notiforward.service'], check=False)
+        subprocess.run(['systemctl', '--user', 'disable', 'notiforward.service'], check=False)
         
-        # Remove systemd service file
-        service_path = Path('/etc/systemd/system/notiforward.service')
-        if service_path.exists():
-            subprocess.run(['sudo', 'rm', service_path], check=True)
-            subprocess.run(['sudo', 'systemctl', 'daemon-reload'], check=True)
+        # Remove user-level service file
+        user_service_path = Path.home() / '.config' / 'systemd' / 'user' / 'notiforward.service'
+        if user_service_path.exists():
+            user_service_path.unlink()
+            subprocess.run(['systemctl', '--user', 'daemon-reload'], check=False)
+
+        # Also try to stop and disable system-level service (in case it was previously installed)
+        subprocess.run(['sudo', 'systemctl', 'stop', 'notiforward.service'], check=False)
+        subprocess.run(['sudo', 'systemctl', 'disable', 'notiforward.service'], check=False)
+        
+        # Remove system-level service file
+        system_service_path = Path('/etc/systemd/system/notiforward.service')
+        if system_service_path.exists():
+            subprocess.run(['sudo', 'rm', system_service_path], check=False)
+            subprocess.run(['sudo', 'systemctl', 'daemon-reload'], check=False)
         
         # Remove script from /opt
         install_path = Path('/opt/notiforward')
         if install_path.exists():
-            subprocess.run(['sudo', 'rm', '-rf', install_path], check=True)
+            subprocess.run(['sudo', 'rm', '-rf', install_path], check=False)
         
         # Remove config
         config_path = Path.home() / '.config' / 'notiforward'
         if config_path.exists():
-            subprocess.run(['rm', '-rf', config_path], check=True)
+            subprocess.run(['rm', '-rf', config_path], check=False)
             
-        # Remove log file
-        log_path = Path('/var/log/notiforward.log')
-        if log_path.exists():
-            subprocess.run(['sudo', 'rm', log_path], check=True)
+        # Remove system log file
+        system_log_path = Path('/var/log/notiforward.log')
+        if system_log_path.exists():
+            subprocess.run(['sudo', 'rm', system_log_path], check=False)
+        
+        # Remove user log file
+        user_log_path = Path.home() / '.local' / 'log' / 'notiforward.log'
+        if user_log_path.exists():
+            user_log_path.unlink()
             
         rprint("[green]✓ Notiforward uninstalled successfully![/green]")
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         rprint("[red]! Failed to uninstall[/red]")
         logging.error(f"Uninstall failed: {e}")
 
@@ -123,47 +143,46 @@ def create_systemd_service():
         subprocess.run(['sudo', 'chown', '-R', f'{os.getenv("USER")}:{os.getenv("USER")}', '/opt/notiforward'], check=True)
         subprocess.run(['sudo', 'chmod', '+x', install_path], check=True)
         
+        # Create user service directory if it doesn't exist
+        user_service_dir = Path.home() / '.config' / 'systemd' / 'user'
+        user_service_dir.mkdir(parents=True, exist_ok=True)
+        
+        # User-level service content - much simpler than system level
         service_content = f"""[Unit]
 Description=Notiforward Discord Notification Forwarder
-After=network.target graphical-session.target
-PartOf=graphical-session.target
+After=network.target
 
 [Service]
 Type=simple
-User={os.getenv('USER')}
-Group={os.getenv('USER')}
 ExecStart={sys.executable} {install_path} --service-mode
 WorkingDirectory=/opt/notiforward
-Restart=on-failure
+Restart=always
 RestartSec=10
-Environment=PYTHONUNBUFFERED=1
-Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{os.getuid()}/bus
-Environment=DISPLAY=:0
-Environment=XDG_RUNTIME_DIR=/run/user/{os.getuid()}
-Environment=HOME=/home/{os.getenv('USER')}
-Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-StandardOutput=append:/var/log/notiforward.log
-StandardError=append:/var/log/notiforward.log
 
 [Install]
-WantedBy=default.target graphical-session.target
+WantedBy=default.target
 """
     
-        service_path = Path('/etc/systemd/system/notiforward.service')
-        log_path = Path('/var/log/notiforward.log')
+        # Write to user systemd directory instead of system
+        service_path = user_service_dir / 'notiforward.service'
+        service_path.write_text(service_content)
         
-        # Create log file and set permissions
-        subprocess.run(['sudo', 'touch', log_path], check=True)
-        subprocess.run(['sudo', 'chown', f'{os.getenv("USER")}:{os.getenv("USER")}', log_path], check=True)
+        # Set up user log file
+        log_dir = Path.home() / '.local' / 'log'
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / 'notiforward.log'
+        log_path.touch(exist_ok=True)
         
-        # Write service file using sudo
-        subprocess.run(['sudo', 'tee', service_path], input=service_content, 
-                      text=True, check=True, capture_output=True)
+        # Use user systemctl commands instead of system ones
+        subprocess.run(['systemctl', '--user', 'daemon-reload'], check=True)
+        subprocess.run(['systemctl', '--user', 'enable', 'notiforward.service'], check=True)
+        subprocess.run(['systemctl', '--user', 'restart', 'notiforward.service'], check=True)
         
-        subprocess.run(['sudo', 'systemctl', 'daemon-reload'], check=True)
-        subprocess.run(['sudo', 'systemctl', 'enable', 'notiforward.service'], check=True)
-        subprocess.run(['sudo', 'systemctl', 'restart', 'notiforward.service'], check=True)
-        rprint("[green]✓ Systemd service created and enabled[/green]")
+        # Enable lingering to allow service to run when user is not logged in
+        subprocess.run(['loginctl', 'enable-linger', os.getenv('USER')], check=True)
+        
+        rprint("[green]✓ User systemd service created and enabled[/green]")
+        rprint("[green]✓ Service will start automatically with system boot[/green]")
     except subprocess.CalledProcessError as e:
         rprint("[red]! Failed to enable systemd service[/red]")
         logging.error(f"Systemd service creation failed: {e}")
