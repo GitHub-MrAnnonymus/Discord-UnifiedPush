@@ -5,11 +5,15 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import org.unifiedpush.android.connector.UnifiedPush
 
 class UnifiedPushConfigScreen : AppCompatActivity() {
     private lateinit var pushHelper: UnifiedPushHelper
@@ -17,6 +21,9 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
     private lateinit var urlTextView: TextView
     private lateinit var copyButton: Button
     private lateinit var continueButton: Button
+    private lateinit var statusTextView: TextView
+    private lateinit var retryButton: Button
+    private lateinit var selectDistributorButton: Button
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,6 +37,9 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
         urlTextView = findViewById(R.id.upUrlTextView)
         copyButton = findViewById(R.id.copyButton)
         continueButton = findViewById(R.id.continueButton)
+        statusTextView = findViewById(R.id.statusTextView)
+        retryButton = findViewById(R.id.retryButton)
+        selectDistributorButton = findViewById(R.id.selectDistributorButton)
         
         copyButton.setOnClickListener {
             pushHelper.endpoint.value?.let { endpoint ->
@@ -37,7 +47,34 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
                 val clip = ClipData.newPlainText("UnifiedPush Endpoint", endpoint)
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(this, "URL copied!", Toast.LENGTH_SHORT).show()
+            } ?: run {
+                // Check if we're using NextPush and have the "internal error"
+                val currentDistributor = UnifiedPush.getDistributor(this)
+                if (currentDistributor.contains("nextpush", ignoreCase = true)) {
+                    Toast.makeText(this, "Attempting to fix NextPush internal error...", Toast.LENGTH_SHORT).show()
+                    // Force a complete reset and retry for NextPush
+                    forceResetNextPush()
+                } else {
+                    Toast.makeText(this, "No URL available to copy", Toast.LENGTH_SHORT).show()
+                }
             }
+        }
+        
+        retryButton.setOnClickListener {
+            statusTextView.text = "Registering with UnifiedPush..."
+            
+            // Special handling for NextPush retry
+            val currentDistributor = UnifiedPush.getDistributor(this)
+            if (currentDistributor.contains("nextpush", ignoreCase = true)) {
+                // For NextPush, first try to reset the registration
+                forceResetNextPush()
+            } else {
+                pushHelper.register()
+            }
+        }
+        
+        selectDistributorButton.setOnClickListener {
+            showDistributorSelectionDialog()
         }
         
         continueButton.setOnClickListener {
@@ -50,9 +87,105 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
             if (endpoint != null) {
                 urlTextView.text = getString(R.string.unified_push_url, endpoint)
                 copyButton.isEnabled = true
+                statusTextView.text = "Successfully registered with UnifiedPush"
+                retryButton.visibility = View.GONE
+                selectDistributorButton.visibility = View.GONE
+                continueButton.isEnabled = true
+            } else {
+                val currentDistributor = UnifiedPush.getDistributor(this)
+                if (currentDistributor.contains("nextpush", ignoreCase = true)) {
+                    urlTextView.text = "NextPush may need additional setup. Try retry or selecting a different distributor."
+                    statusTextView.text = "NextPush registration issue. Retry or select another distributor."
+                } else {
+                    urlTextView.text = "No endpoint available. Please check your UnifiedPush distributor."
+                    statusTextView.text = "Registration failed. Try a different distributor or retry."
+                }
+                copyButton.isEnabled = false
+                retryButton.visibility = View.VISIBLE
+                selectDistributorButton.visibility = View.VISIBLE
+                continueButton.isEnabled = false
             }
         }
         
+        pushHelper.distributors.observe(this) { distributorList ->
+            if (distributorList.isEmpty()) {
+                statusTextView.text = "No UnifiedPush distributors found. Please install one."
+                selectDistributorButton.visibility = View.GONE
+            } else {
+                val currentDistributor = UnifiedPush.getDistributor(this)
+                if (currentDistributor.isNotEmpty() && distributorList.contains(currentDistributor)) {
+                    statusTextView.text = "Using distributor: $currentDistributor"
+                } else {
+                    statusTextView.text = "Found distributors: ${distributorList.joinToString()}"
+                }
+                selectDistributorButton.visibility = if (distributorList.size > 1) View.VISIBLE else View.GONE
+            }
+        }
+        
+        // Start with buttons disabled until we know the status
+        continueButton.isEnabled = false
+        copyButton.isEnabled = false
+        
         pushHelper.register()
+    }
+    
+    private fun forceResetNextPush() {
+        try {
+            Log.d("UnifiedPushConfig", "Starting NextPush reset procedure using NextPushFixer")
+            
+            // Use the specialized NextPush fixer
+            statusTextView.text = "Deep fixing NextPush configuration..."
+            Toast.makeText(this, "Attempting advanced NextPush fix...", Toast.LENGTH_LONG).show()
+            
+            // Create the fixer and run it
+            val fixer = NextPushFixer(this)
+            fixer.fixNextPush {
+                // This is called when the fix is complete
+                runOnUiThread {
+                    statusTextView.text = "Fixed NextPush, registering..."
+                    
+                    // Try to register with a delay
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        val distributors = UnifiedPush.getDistributors(this)
+                        val nextPushDistributor = distributors.find { it.contains("nextpush", ignoreCase = true) }
+                        
+                        if (nextPushDistributor != null) {
+                            // Force save the distributor
+                            UnifiedPush.saveDistributor(this, nextPushDistributor)
+                            Log.d("UnifiedPushConfig", "Using NextPush distributor: $nextPushDistributor")
+                        }
+                        
+                        // Register
+                        pushHelper.register()
+                    }, 1000)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("UnifiedPushConfig", "Error during NextPush advanced fix", e)
+            statusTextView.text = "Error fixing NextPush: ${e.message}"
+            pushHelper.register()
+        }
+    }
+    
+    private fun showDistributorSelectionDialog() {
+        val distributors = pushHelper.distributors.value ?: return
+        if (distributors.isEmpty()) return
+        
+        AlertDialog.Builder(this)
+            .setTitle("Select UnifiedPush Distributor")
+            .setItems(distributors.toTypedArray()) { _, which ->
+                val selected = distributors[which]
+                statusTextView.text = "Switching to distributor: $selected"
+                
+                // Save the selected distributor
+                UnifiedPush.saveDistributor(this, selected)
+                
+                // Wait a moment before registering
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    pushHelper.register()
+                }, 500)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }

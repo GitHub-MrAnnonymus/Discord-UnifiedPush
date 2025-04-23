@@ -125,7 +125,8 @@ def create_systemd_service():
         
         service_content = f"""[Unit]
 Description=Notiforward Discord Notification Forwarder
-After=network.target
+After=network.target graphical-session.target
+PartOf=graphical-session.target
 
 [Service]
 Type=simple
@@ -145,7 +146,7 @@ StandardOutput=append:/var/log/notiforward.log
 StandardError=append:/var/log/notiforward.log
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target graphical-session.target
 """
     
         service_path = Path('/etc/systemd/system/notiforward.service')
@@ -179,12 +180,18 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--re-run-setup', action='store_true', help='Re-run the setup wizard')
 parser.add_argument('--service-mode', action='store_true', help='Run in service mode (internal use)')
 parser.add_argument('--uninstall', action='store_true', help='Uninstall notiforward completely')
+parser.add_argument('--fix-service', action='store_true', help='Fix the systemd service for autostart')
 args = parser.parse_args()
 
 # Handle uninstall first, before any other operations
 if args.uninstall:
     uninstall()
     sys.exit(0)  # Make sure we exit after uninstall
+
+# Handle service fix if requested
+if args.fix_service:
+    create_systemd_service()
+    sys.exit(0)  # Exit after fixing service
 
 # Handle setup mode
 if not args.service_mode:

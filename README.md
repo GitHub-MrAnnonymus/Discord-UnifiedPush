@@ -17,3 +17,25 @@ The repository contains an Android app that utilizes the WebView component to re
 6. Paste the URL, choose whether you want logs, and select if you want it to run on startup (via a Systemd service).
 7. That's it! Log in on your Android phone.
 8. Profit.
+
+## **Recent Updates**
+- **Enhanced UnifiedPush Support**: Added robust compatibility with multiple UnifiedPush distributors including NextPush and NTFY
+- **Automatic Distributor Recovery**: The app now includes advanced recovery mechanisms to handle common distributor registration issues
+- **NextPush Deep Integration**: Special handling for NextPush with automatic configuration and error recovery
+- **Fallback Mechanisms**: If one distributor fails, the app will automatically try alternative distributors
+- **Notification Consolidation**: The Android app now consolidates multiple notifications into a single notification in your notification drawer to prevent spam
+- **Custom Notification Sound**: Discord notifications now use the official Discord notification sound
+- **Fixed Systemd Service**: The systemd service has been improved to properly auto-start with your desktop session
+
+## **Troubleshooting**
+### Push Notification Issues
+- **NextPush Registration Errors**: If you see a "NextPush internal error" message, try clearing NextPush's storage in Android Settings > Apps > NextPush > Storage > Clear Storage
+- **No Endpoint URL**: If no endpoint URL appears after registration, try restarting both the distributor app and Discord-UnifiedPush
+- **Multiple Distributors**: The app now supports automatic selection between multiple distributors, with preference for more reliable options
+
+### Backend Issues
+If the backend systemd service doesn't auto-start properly after system boot, run this command to fix it:
+```bash
+python /path/to/notiforward.py --fix-service
+```
+This will recreate the systemd service with the proper configuration to ensure it starts with your desktop session.
