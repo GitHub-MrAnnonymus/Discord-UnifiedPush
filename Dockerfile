@@ -60,6 +60,7 @@ COPY ["Linux backend/notiforward.py", "/opt/notiforward/"]
 COPY requirements.txt /opt/notiforward/
 RUN cd /opt/notiforward \
     && pip3 install -r requirements.txt requests \
+    && pip3 install cryptography>=44.0.1 jwcrypto>=1.5.6 \
     && chown -R appuser:appuser /opt/notiforward
 
 # Create notiforward config
