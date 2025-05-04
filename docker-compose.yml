@@ -9,7 +9,7 @@ services:
       - "6080:6080"
     environment:
       - NTFY_URL=your-unified-push-endpoint-url
-      - VNC_PASSWORD=password
+      - VNC_PASSWORD=your-secure-password
     volumes:
       - vesktop-data:/home/appuser/.config/vesktop
     restart: unless-stopped
