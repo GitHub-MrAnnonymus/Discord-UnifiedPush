@@ -284,7 +284,7 @@ def main():
                 current_notification = []
                 
                 # Check for Vesktop
-                if 'dev.vencord.Vesktop' in full_notif:
+                if 'dev.vencord.Vesktop' in full_notif or 'string "vesktop"' in full_notif:
                     logging.info("Matched Vesktop notification!")
                     notification_content = extract_notification_content(full_notif)
                     

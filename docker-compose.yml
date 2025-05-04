@@ -1,0 +1,19 @@
+---
+
+services:
+  vesktop-unifiedpush:
+    build: .
+    image: vesktop-unifiedpush
+    container_name: vesktop-unifiedpush
+    ports:
+      - "6080:6080"
+    environment:
+      - NTFY_URL=your-unified-push-endpoint-url
+      - VNC_PASSWORD=password
+    volumes:
+      - vesktop-data:/home/appuser/.config/vesktop
+    restart: unless-stopped
+
+volumes:
+  vesktop-data:
+    driver: local

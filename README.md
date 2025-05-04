@@ -1,41 +1,102 @@
 # Discord-UnifiedPush
-This repository hosts an Android app and its Linux backend for receiving UnifiedPush notifications for Discord.
+This repository hosts an Android app and a Discord notification forwarding system for receiving UnifiedPush notifications for Discord.
 
 **Thanks to charles8191 for making Discord WebView for Android**
 
 ## **Backstory**
-I am currently using a degoogled Android phone as my daily driver, and apps relying on FCM for their notifications became annoying. Most of my apps already support UnifiedPush as a protocol, so I implemented it for Discord. I'm pretty new to Android development, and this project will be a learning experience as I go (don't expect much).
+I am currently using a degoogled Android phone as my daily driver, and apps relying on FCM 
+for their notifications became annoying. Most of my apps already support UnifiedPush as a 
+protocol, so I implemented it for Discord. I'm pretty new to Android development, and this 
+project will be a learning experience as I go (don't expect much).
 
-The repository contains an Android app that utilizes the WebView component to render Discord's website. The other components are related to UnifiedPush. The backend is made to run on one of my laptops, which uses Fedora 41 KDE, the system I was testing it on. Your experience may vary. On that laptop, I have Vesktop running as a Flatpak, and the script listens to DBus for notifications. When a notification is detected, it is pushed via the URL provided at setup (in the Android app), and the phone displays it.
+## **Overview**
+This project has two main components:
+1. An Android app that uses WebView to render Discord's website
+2. A notification forwarder that can run either as a script on Linux or as a Docker container
 
-## **Installation**
-1. Download the app-release.apk from the Releases section, or compile it via Android Studio.
-2. Install and run the app. It will register with a distributor and give you a URL.
-3. Copy the URL and send it to your "server."
-4. On the server, run the script found in the "Linux backend" folder of this repository.
-5. The script will guide you through the rest of the setup.
-6. Paste the URL, choose whether you want logs, and select if you want it to run on startup (via a Systemd service).
-7. That's it! Log in on your Android phone.
-8. Profit.
+The system listens to DBus for Discord notifications and forwards them via UnifiedPush to your mobile device.
+
+## **Android App Setup**
+1. Download the app-release.apk from the Releases section, or compile it via Android Studio
+2. Install and run the app. It will register with a distributor and give you a URL
+3. Copy the URL - you'll need it for the backend setup
+
+## **Backend Setup Options**
+
+### Option 1: Docker Container (Recommended)
+
+This approach runs a containerized version of Vesktop with notification forwarding.
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/Discord-UnifiedPush.git
+   cd Discord-UnifiedPush
+   ```
+
+2. Edit the `docker-compose.yml` file to set your UnifiedPush endpoint URL (from the Android app):
+   ```yaml
+   environment:
+     - NTFY_URL=your-unified-push-endpoint-url
+     - VNC_PASSWORD=your-secure-password
+   ```
+
+3. Start the container:
+   ```bash
+   docker-compose up -d
+   ```
+
+4. Access Vesktop via your web browser at: http://localhost:6080
+
+### Option 2: Linux Script Setup
+
+If you prefer to run the notification forwarder on your existing Linux system:
+
+1. On your Linux machine, run the script found in the "Linux backend" folder of this repository
+2. The script will guide you through the setup
+3. Paste the URL from the Android app, choose whether you want logs, and whether you want it to run on startup (via a Systemd service)
+4. The system will detect Discord notifications from your desktop and forward them to your phone
+
+## **Docker Features**
+
+The Docker container provides:
+- Containerized Discord client (Vesktop) accessible via VNC/noVNC in a web browser
+- Notification forwarding to your mobile device via UnifiedPush
+- Persistent data storage (login credentials are preserved)
+- Minimal UI environment with Fluxbox
+
+### Troubleshooting Docker Setup
+
+If you encounter issues with the Docker container:
+
+1. Check the container logs:
+   ```bash
+   docker logs vesktop-unifiedpush
+   ```
+
+2. Examine the process logs within the container:
+   ```bash
+   docker exec vesktop-unifiedpush cat /var/log/supervisor/vesktop.log
+   docker exec vesktop-unifiedpush cat /var/log/supervisor/notiforward.log
+   ```
 
 ## **Recent Updates**
-- **Enhanced UnifiedPush Support**: Added robust compatibility with multiple UnifiedPush distributors including NextPush and NTFY
-- **Automatic Distributor Recovery**: The app now includes advanced recovery mechanisms to handle common distributor registration issues
+- **Added Docker Container**: Run Vesktop and notification forwarding in a contained environment
+- **Enhanced UnifiedPush Support**: Added robust compatibility with multiple UnifiedPush distributors
+- **Automatic Distributor Recovery**: The app includes advanced recovery mechanisms for distributor registration issues
 - **NextPush Deep Integration**: Special handling for NextPush with automatic configuration and error recovery
-- **Fallback Mechanisms**: If one distributor fails, the app will automatically try alternative distributors
-- **Notification Consolidation**: The Android app now consolidates multiple notifications into a single notification in your notification drawer to prevent spam
-- **Custom Notification Sound**: Discord notifications now use the official Discord notification sound
-- **Fixed Systemd Service**: The systemd service has been improved to properly auto-start with your desktop session
+- **Fallback Mechanisms**: If one distributor fails, the app will try alternative distributors
+- **Notification Consolidation**: The Android app consolidates multiple notifications to prevent spam
+- **Custom Notification Sound**: Discord notifications use the official Discord notification sound
 
 ## **Troubleshooting**
 ### Push Notification Issues
 - **NextPush Registration Errors**: If you see a "NextPush internal error" message, try clearing NextPush's storage in Android Settings > Apps > NextPush > Storage > Clear Storage
 - **No Endpoint URL**: If no endpoint URL appears after registration, try restarting both the distributor app and Discord-UnifiedPush
-- **Multiple Distributors**: The app now supports automatic selection between multiple distributors, with preference for more reliable options
+- **Multiple Distributors**: The app supports automatic selection between multiple distributors
 
-### Backend Issues
-If the backend systemd service doesn't auto-start properly after system boot, run this command to fix it:
+### Backend Issues (Linux Script)
+If the systemd service doesn't auto-start properly after system boot, run this command to fix it:
 ```bash
 python /path/to/notiforward.py --fix-service
 ```
-This will recreate the systemd service with the proper configuration to ensure it starts with your desktop session.
+This will recreate the systemd service with the proper configuration.
