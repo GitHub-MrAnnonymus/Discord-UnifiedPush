@@ -54,10 +54,31 @@ class MainActivity : AppCompatActivity() {
         NotificationHelper.createNotificationChannel(this)
         
         val webView: WebView = findViewById(R.id.webview)
+        
+        // Set dark background color to prevent white flash
+        webView.setBackgroundColor(Color.parseColor("#36393F"))
+        
         CookieManager.getInstance().setAcceptCookie(true)
         val webSettings: WebSettings = webView.settings
         webView.settings.javaScriptEnabled = true
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                // Maintain dark background during page load
+                view?.setBackgroundColor(Color.parseColor("#36393F"))
+            }
+            
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                // Keep dark background after page load completed
+                view?.setBackgroundColor(Color.parseColor("#36393F"))
+                
+                // Apply dark background to page body
+                view?.evaluateJavascript("""
+                    document.body.style.backgroundColor = '#36393F';
+                """.trimIndent(), null)
+            }
+        }
         webView.settings.userAgentString = "Android (+https://github.com/charles8191/discord)"
         webSettings.domStorageEnabled = true
         webSettings.allowFileAccess = true

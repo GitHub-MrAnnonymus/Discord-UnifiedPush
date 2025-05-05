@@ -1,11 +1,19 @@
 package com.mrannonymus.discordwithnormalnotificationsunifiedpush
 
+import android.graphics.Color
 import android.os.Build
 import android.util.Log
 import android.webkit.*
 import androidx.annotation.RequiresApi
+import com.mrannonymus.discordwithnormalnotificationsunifiedpush.ui.theme.DiscordGrey
 
 class DiscordWebViewClient : WebViewClient() {
+
+    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+        super.onPageStarted(view, url, favicon)
+        // Ensure background color stays dark during page transitions
+        view?.setBackgroundColor(DiscordGrey.toArgb())
+    }
 
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
         val url = request?.url?.toString() ?: return false
@@ -23,6 +31,9 @@ class DiscordWebViewClient : WebViewClient() {
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
         Log.d("DiscordWebView", "Page finished loading: $url")
+        
+        // Keep background dark even after page loads
+        view?.setBackgroundColor(DiscordGrey.toArgb())
         
         // Inject viewport meta tag and CSS fixes
         view?.evaluateJavascript("""
@@ -43,6 +54,7 @@ class DiscordWebViewClient : WebViewClient() {
                 position: fixed !important;
                 top: 0 !important;
                 left: 0 !important;
+                background-color: #36393F !important;
             `;
         """.trimIndent(), null)
         

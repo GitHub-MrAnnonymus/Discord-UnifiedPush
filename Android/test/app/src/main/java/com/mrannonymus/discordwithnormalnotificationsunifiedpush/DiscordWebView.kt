@@ -1,6 +1,7 @@
 package com.mrannonymus.discordwithnormalnotificationsunifiedpush
 
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.webkit.*
 import androidx.compose.foundation.layout.*
@@ -8,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.mrannonymus.discordwithnormalnotificationsunifiedpush.ui.theme.DiscordGrey
 
 @Composable
 fun DiscordWebView(modifier: Modifier = Modifier) {
@@ -28,6 +30,10 @@ fun DiscordWebView(modifier: Modifier = Modifier) {
         factory = { context ->
             WebView(context).apply {
                 webView = this
+                
+                // Set background color to match Discord dark theme to prevent white flash
+                setBackgroundColor(DiscordGrey.toArgb())
+                
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
