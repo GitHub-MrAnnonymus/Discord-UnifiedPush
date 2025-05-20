@@ -257,8 +257,9 @@ class UnifiedPushHelper private constructor(context: Context) {
     fun handleMessage(message: ByteArray) {
         try {
             val messageStr = String(message)
-            android.util.Log.d(TAG, "Received message: $messageStr")
+            android.util.Log.d(TAG, "Received raw message: $messageStr")
             
+            // First try parsing as JSON
             val json = try {
                 JSONObject(messageStr)
             } catch (e: Exception) {
@@ -271,7 +272,7 @@ class UnifiedPushHelper private constructor(context: Context) {
             }
             
             val title = json.optString("title", "Discord")
-            val content = json.optString("content", "New message")
+            val content = json.optString("content", messageStr) // Use raw message as content if not in JSON
             val channelId = json.optString("channel_id", "")
             val guildId = json.optString("guild_id", "")
             val sender = json.optString("sender", "")
@@ -285,10 +286,18 @@ class UnifiedPushHelper private constructor(context: Context) {
                 title
             }
             
+            // Always show notification regardless of content
             showNotification(notificationTitle, content, channelId, guildId)
+            android.util.Log.d(TAG, "Successfully showed notification")
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Error handling message", e)
-            showNotification("Discord", String(message), "", "")
+            android.util.Log.e(TAG, "Critical error handling message", e)
+            // Last resort - show raw message
+            try {
+                showNotification("Discord", String(message), "", "")
+                android.util.Log.d(TAG, "Showed fallback notification with raw message")
+            } catch (e2: Exception) {
+                android.util.Log.e(TAG, "Even fallback notification failed", e2)
+            }
         }
     }
 

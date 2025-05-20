@@ -288,15 +288,17 @@ def extract_notification_content(text):
 def should_ignore_notification(text, content):
     """Check if a notification should be ignored based on content or source"""
     
-    # Ignore vesktop debug/test notifications
-    if content.lower() == "urgency" or content.lower() == "test":
-        logging.info("Ignoring debug/test notification with content: " + content)
+    # Debug output for all notifications
+    logging.info(f"Processing notification with content: '{content}'")
+    
+    # Only filter out exact matches for debug messages
+    if content.lower() == "urgency":
+        logging.info("Ignoring vesktop debug notification with content: 'urgency'")
         return True
         
-    # Ignore notifications with empty content
-    if not content or content.strip() == "":
-        return True
-        
+    # Don't filter test messages anymore, they might be legitimate
+    # Allow empty content since it might just be a notification without text
+    
     return False
 
 def main():
@@ -367,33 +369,58 @@ def main():
                     )
                     
                     try:
-                        # First try sending as JSON
-                        logging.info(f"Sending JSON notification: {json_content}")
+                        # Log more details about the message
+                        logging.info("===== PREPARING TO SEND NOTIFICATION =====")
+                        logging.info(f"Raw notification content: {text_content}")
+                        logging.info(f"JSON content: {json_content}")
+                        
+                        # First try sending as text (more compatible with NextPush)
+                        logging.info(f"Sending plain text notification first...")
                         res = requests.post(
                             endpoint,
-                            data=json_content,
-                            headers={"Content-Type": "application/json"},
+                            data=text_content,
+                            headers={"Content-Type": "text/plain"},
                             timeout=10
                         )
                         
-                        # If JSON fails, try plain text fallback
+                        logging.info(f"Plain text response status: {res.status_code}")
+                        
+                        # If plain text fails, try JSON
                         if res.status_code > 299:
-                            logging.warning(f"JSON send failed with code: {res.status_code}. Trying plain text fallback.")
+                            logging.warning(f"Plain text send failed with code: {res.status_code}. Trying JSON format...")
                             res = requests.post(
                                 endpoint,
-                                data=text_content,
-                                headers={"Content-Type": "text/plain"},
+                                data=json_content,
+                                headers={"Content-Type": "application/json"},
                                 timeout=10
                             )
+                            logging.info(f"JSON response status: {res.status_code}")
                         
-                        logging.info(f"Response status: {res.status_code}")
+                        # Print response details
+                        logging.info(f"Final response status: {res.status_code}")
                         logging.debug(f"Response text: {res.text}")
                         
                         if res.status_code > 299:
                             logging.error(f"All send attempts failed with code: {res.status_code}\n{res.text}")
+                            logging.error("===== NOTIFICATION SENDING FAILED =====")
+                        else:
+                            logging.info("===== NOTIFICATION SENT SUCCESSFULLY =====")
                     except Exception as e:
                         logging.error(f"Failed to send notification: {e}")
                         logging.error(traceback.format_exc())
+                        logging.error("===== NOTIFICATION SENDING FAILED WITH EXCEPTION =====")
+                        
+                        # As a last resort, try a very simple message
+                        try:
+                            logging.info("Attempting last resort simple message")
+                            requests.post(
+                                endpoint,
+                                data="New Discord message",
+                                headers={"Content-Type": "text/plain"},
+                                timeout=10
+                            )
+                        except Exception as fallback_error:
+                            logging.error(f"Even simple fallback failed: {fallback_error}")
                             
     except Exception as e:
         logging.error(f"Failed to start or monitor notifications: {e}")
