@@ -29,7 +29,7 @@ This approach runs a containerized version of Vesktop with notification forwardi
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/Discord-UnifiedPush.git
+   git clone https://github.com/GitHub-MrAnnonymus/Discord-UnifiedPush.git
    cd Discord-UnifiedPush
    ```
 
