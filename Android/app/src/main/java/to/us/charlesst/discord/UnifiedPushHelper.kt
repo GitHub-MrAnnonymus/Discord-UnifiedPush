@@ -317,10 +317,29 @@ class UnifiedPushHelper private constructor(context: Context) {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        
+        // Get notification style
+        val notificationStyle = preferencesManager.getNotificationStyle()
+        
+        // For SINGLE style, always use generic notification without content
+        val displayTitle = if (notificationStyle == PreferencesManager.NOTIFICATION_STYLE_SINGLE) {
+            "Discord"
+        } else {
+            title
+        }
+        
+        // For SINGLE style, don't show message content
+        val displayContent = if (notificationStyle == PreferencesManager.NOTIFICATION_STYLE_SINGLE) {
+            "New Discord notification"
+        } else if (content.isBlank()) {
+            "New message"
+        } else {
+            content
+        }
 
         val notificationBuilder = NotificationCompat.Builder(getContext(), CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(content)
+            .setContentTitle(displayTitle)
+            .setContentText(displayContent)
             .setSmallIcon(R.drawable.ic_notification)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
@@ -328,15 +347,17 @@ class UnifiedPushHelper private constructor(context: Context) {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
         
-        // For content-rich notifications, use big text style
-        if (content.length > 40 || content.contains("\n")) {
-            notificationBuilder.setStyle(NotificationCompat.BigTextStyle().bigText(content))
+        // Only use BigTextStyle for content-rich notifications in multi and hybrid styles
+        if (notificationStyle != PreferencesManager.NOTIFICATION_STYLE_SINGLE) {
+            if (content.length > 40 || content.contains("\n")) {
+                notificationBuilder.setStyle(NotificationCompat.BigTextStyle().bigText(displayContent))
+            }
         }
         
         val notification = notificationBuilder.build()
 
         // Determine notification ID based on selected style
-        when (preferencesManager.getNotificationStyle()) {
+        when (notificationStyle) {
             PreferencesManager.NOTIFICATION_STYLE_SINGLE -> {
                 // Current approach - single notification with timestamp update
                 notificationManager.notify(NOTIFICATION_ID, notification)

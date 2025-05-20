@@ -16,6 +16,31 @@ This project has two main components:
 
 The system listens to DBus for Discord notifications and forwards them via UnifiedPush to your mobile device.
 
+## **Migration to the latest version that has customizable notifications**
+Phone:
+1. Clear app data from Discord
+2. Go to your UnifiedPush provider and remove Discord
+
+Server (Docker):
+1. Remove the containers with
+   ```bash
+   docker compose down
+   ```
+2. Remove the docker volume and image, you will need a new image
+   ```bash
+   docker image rm vesktop-unifiedpush
+   ```
+3. Remove docker volume (for this one you will have to look yourself, they are all different)
+4. Do the setup as usual, just on phone pick what version you want, it's all explained in the setup wizard
+
+Server (script):
+1. Run the uninstaller 
+   ```bash
+   python /path/to/notiforward.py --uninstall
+   ```
+2. Get the new script from Linux backend folder
+3. Run it again and do the setup as usual just on phone pick what version you want, it's all explained in the setup wizard
+
 ## **Android App Setup**
 1. Download the app-release.apk from the Releases section, or compile it via Android Studio
 2. Install and run the app. It will register with a distributor and give you a URL
