@@ -242,46 +242,47 @@ logging.info(f"Loaded endpoint: {endpoint}")
 def extract_notification_content(text):
     logging.debug(f"Extracting content from: {text}")
     
-    # Extract app name
-    app_match = re.search(r'string "([^"]+)"', text)
-    app_name = app_match.group(1) if app_match else "Discord"
+    # DBus notifications have a specific format:
+    # string "App Name"
+    # uint32 ID
+    # string "Icon"
+    # string "Title/Sender"
+    # string "Content/Message"
     
-    # Look for notification title and body
-    body_match = re.search(r'string "([^"]+)"\s+uint32 \d+\s+string "([^"]+)"', text)
+    # Extract all string fields
+    string_values = re.findall(r'string "([^"]*)"', text)
+    logging.debug(f"Found string values: {string_values}")
+    
+    # Default values
     title = "Discord"
     content = "New message"
+    sender = ""
     
-    if body_match:
-        # First match is usually app name, second is content
-        content = body_match.group(2)
-        logging.debug(f"Extracted content: {content}")
+    # For Discord/Vesktop notifications, we expect at least 5 string fields:
+    # 0: App name (System Notifications or similar)
+    # 1: Icon name
+    # 2: Sender/Title (usually the username)
+    # 3: Content (the message)
+    # The rest are extra fields
+    
+    if len(string_values) >= 4:
+        # The 3rd string value (index 2) is typically the sender/title
+        sender = string_values[2]
+        # The 4th string value (index 3) is the content
+        content = string_values[3]
         
-        # Try to extract sender from content
-        sender_match = re.search(r'^([^:]+): (.+)$', content)
-        if sender_match:
-            sender = sender_match.group(1).strip()
-            pure_content = sender_match.group(2).strip()
-            return {
-                "json": json.dumps({
-                    "title": title,
-                    "content": pure_content,
-                    "sender": sender,
-                    "channel_id": "",
-                    "guild_id": ""
-                }),
-                "text": f"{sender}: {pure_content}"
-            }
+        logging.info(f"Extracted sender: '{sender}' and content: '{content}'")
     
-    # If we couldn't parse out sender, just send the basic content
+    # Create response with JSON and text versions
     return {
         "json": json.dumps({
             "title": title,
             "content": content,
-            "sender": "",
+            "sender": sender,
             "channel_id": "",
             "guild_id": ""
         }),
-        "text": content
+        "text": f"{sender}: {content}"
     }
 
 def main():
