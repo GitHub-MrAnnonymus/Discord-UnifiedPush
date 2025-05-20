@@ -285,6 +285,20 @@ def extract_notification_content(text):
         "text": f"{sender}: {content}"
     }
 
+def should_ignore_notification(text, content):
+    """Check if a notification should be ignored based on content or source"""
+    
+    # Ignore vesktop debug/test notifications
+    if content.lower() == "urgency" or content.lower() == "test":
+        logging.info("Ignoring debug/test notification with content: " + content)
+        return True
+        
+    # Ignore notifications with empty content
+    if not content or content.strip() == "":
+        return True
+        
+    return False
+
 def main():
     try:
         logging.info("Starting dbus-monitor process...")
@@ -328,6 +342,15 @@ def main():
                     notification_data = extract_notification_content(full_notif)
                     json_content = notification_data["json"]
                     text_content = notification_data["text"]
+                    
+                    # Parse the JSON to get the content
+                    parsed_json = json.loads(json_content)
+                    content = parsed_json.get("content", "")
+                    
+                    # Skip notification if it should be ignored
+                    if should_ignore_notification(full_notif, content):
+                        logging.info("Skipping ignored notification")
+                        continue
                     
                     # Check if this is a duplicate notification
                     cache_key = f"{text_content}_{int(time.time()) // CACHE_TIMEOUT}"
