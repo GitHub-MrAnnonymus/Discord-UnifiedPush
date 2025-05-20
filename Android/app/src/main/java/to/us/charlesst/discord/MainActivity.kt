@@ -1,9 +1,12 @@
 package to.us.charlesst.discord
 
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.WindowManager
@@ -17,8 +20,11 @@ import android.webkit.WebViewClient
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -28,6 +34,19 @@ class MainActivity : AppCompatActivity() {
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private lateinit var preferencesManager: PreferencesManager
     private lateinit var pushHelper: UnifiedPushHelper
+    
+    // Permission request for notifications
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Toast.makeText(this, "Notification permission granted", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, 
+                "Notification permission denied. You may not receive message notifications.", 
+                Toast.LENGTH_LONG).show()
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +59,9 @@ class MainActivity : AppCompatActivity() {
             finish()
             return
         }
+        
+        // Check notification permission
+        checkNotificationPermission()
         
         // Check if notification style preference has been set
         if (!preferencesManager.isNotificationStyleSet()) {
@@ -120,6 +142,39 @@ class MainActivity : AppCompatActivity() {
         intent?.data?.let { uri ->
             webView.loadUrl(uri.toString())
         } ?: webView.loadUrl("https://discord.com/app")
+    }
+    
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    // Permission already granted
+                }
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) -> {
+                    // Show permission explanation dialog
+                    AlertDialog.Builder(this)
+                        .setTitle("Notification Permission")
+                        .setMessage("This app needs notification permission to alert you about new Discord messages.")
+                        .setPositiveButton("Grant Permission") { _, _ ->
+                            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                        .setNegativeButton("Not Now") { dialog, _ ->
+                            dialog.dismiss()
+                        }
+                        .show()
+                }
+                else -> {
+                    // Directly request permission
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
     }
     
     private fun showNotificationStylePrompt() {
