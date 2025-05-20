@@ -261,22 +261,28 @@ def extract_notification_content(text):
         if sender_match:
             sender = sender_match.group(1).strip()
             pure_content = sender_match.group(2).strip()
-            return json.dumps({
-                "title": title,
-                "content": pure_content,
-                "sender": sender,
-                "channel_id": "",
-                "guild_id": ""
-            })
+            return {
+                "json": json.dumps({
+                    "title": title,
+                    "content": pure_content,
+                    "sender": sender,
+                    "channel_id": "",
+                    "guild_id": ""
+                }),
+                "text": f"{sender}: {pure_content}"
+            }
     
     # If we couldn't parse out sender, just send the basic content
-    return json.dumps({
-        "title": title,
-        "content": content,
-        "sender": "",
-        "channel_id": "",
-        "guild_id": ""
-    })
+    return {
+        "json": json.dumps({
+            "title": title,
+            "content": content,
+            "sender": "",
+            "channel_id": "",
+            "guild_id": ""
+        }),
+        "text": content
+    }
 
 def main():
     try:
@@ -311,13 +317,19 @@ def main():
                 full_notif = "\n".join(current_notification)
                 current_notification = []
                 
-                # Check for Vesktop
-                if 'dev.vencord.Vesktop' in full_notif or 'string "vesktop"' in full_notif or 'string "Discord"' in full_notif:
+                # Check for Discord or Vesktop
+                if ('dev.vencord.Vesktop' in full_notif or 
+                    'string "vesktop"' in full_notif or 
+                    'string "Discord"' in full_notif or
+                    'string "discord"' in full_notif):
+                    
                     logging.info("Matched Discord notification!")
-                    notification_content = extract_notification_content(full_notif)
+                    notification_data = extract_notification_content(full_notif)
+                    json_content = notification_data["json"]
+                    text_content = notification_data["text"]
                     
                     # Check if this is a duplicate notification
-                    cache_key = f"{notification_content}_{int(time.time()) // CACHE_TIMEOUT}"
+                    cache_key = f"{text_content}_{int(time.time()) // CACHE_TIMEOUT}"
                     if cache_key in NOTIFICATION_CACHE:
                         logging.info("Skipping duplicate notification")
                         continue
@@ -331,19 +343,30 @@ def main():
                     )
                     
                     try:
-                        logging.info(f"Sending notification: {notification_content}")
+                        # First try sending as JSON
+                        logging.info(f"Sending JSON notification: {json_content}")
                         res = requests.post(
                             endpoint,
-                            data=notification_content,
+                            data=json_content,
                             headers={"Content-Type": "application/json"},
                             timeout=10
                         )
+                        
+                        # If JSON fails, try plain text fallback
+                        if res.status_code > 299:
+                            logging.warning(f"JSON send failed with code: {res.status_code}. Trying plain text fallback.")
+                            res = requests.post(
+                                endpoint,
+                                data=text_content,
+                                headers={"Content-Type": "text/plain"},
+                                timeout=10
+                            )
                         
                         logging.info(f"Response status: {res.status_code}")
                         logging.debug(f"Response text: {res.text}")
                         
                         if res.status_code > 299:
-                            logging.error(f"Send failed with code: {res.status_code}\n{res.text}")
+                            logging.error(f"All send attempts failed with code: {res.status_code}\n{res.text}")
                     except Exception as e:
                         logging.error(f"Failed to send notification: {e}")
                         logging.error(traceback.format_exc())
