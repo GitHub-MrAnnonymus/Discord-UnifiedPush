@@ -104,15 +104,6 @@ If you encounter issues with the Docker container:
    docker exec vesktop-unifiedpush cat /var/log/supervisor/notiforward.log
    ```
 
-## **Recent Updates**
-- **Added Docker Container**: Run Vesktop and notification forwarding in a contained environment
-- **Enhanced UnifiedPush Support**: Added robust compatibility with multiple UnifiedPush distributors
-- **Automatic Distributor Recovery**: The app includes advanced recovery mechanisms for distributor registration issues
-- **NextPush Deep Integration**: Special handling for NextPush with automatic configuration and error recovery
-- **Fallback Mechanisms**: If one distributor fails, the app will try alternative distributors
-- **Notification Consolidation**: The Android app consolidates multiple notifications to prevent spam
-- **Custom Notification Sound**: Discord notifications use the official Discord notification sound
-
 ## **Troubleshooting**
 ### Push Notification Issues
 - **NextPush Registration Errors**: If you see a "NextPush internal error" message, try clearing NextPush's storage in Android Settings > Apps > NextPush > Storage > Clear Storage
