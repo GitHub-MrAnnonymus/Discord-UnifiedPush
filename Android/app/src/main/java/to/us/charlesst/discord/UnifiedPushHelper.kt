@@ -15,12 +15,15 @@ import androidx.lifecycle.MutableLiveData
 import org.unifiedpush.android.connector.UnifiedPush
 import org.json.JSONObject
 import java.lang.ref.WeakReference
+import java.util.Random
 
 private const val TAG = "UnifiedPush"
 
 class UnifiedPushHelper private constructor(context: Context) {
     private val contextRef = WeakReference(context.applicationContext)
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    private val preferencesManager = PreferencesManager(context)
+    private val random = Random()
     
     val endpoint = MutableLiveData<String?>(null)
     val distributors = MutableLiveData<List<String>>(emptyList())
@@ -254,17 +257,38 @@ class UnifiedPushHelper private constructor(context: Context) {
     fun handleMessage(message: ByteArray) {
         try {
             val messageStr = String(message)
-            val json = JSONObject(messageStr)
+            android.util.Log.d(TAG, "Received message: $messageStr")
+            
+            val json = try {
+                JSONObject(messageStr)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error parsing JSON, using raw message", e)
+                // If not JSON, wrap the plain text in a JSON object
+                JSONObject().apply {
+                    put("content", messageStr)
+                    put("title", "Discord")
+                }
+            }
             
             val title = json.optString("title", "Discord")
             val content = json.optString("content", "New message")
             val channelId = json.optString("channel_id", "")
             val guildId = json.optString("guild_id", "")
+            val sender = json.optString("sender", "")
             
-            showNotification(title, content, channelId, guildId)
+            android.util.Log.d(TAG, "Parsed notification - Title: $title, Content: $content, Sender: $sender")
+            
+            // Construct a better title if sender is available
+            val notificationTitle = if (sender.isNotEmpty()) {
+                if (title != "Discord") "$title from $sender" else "Message from $sender"
+            } else {
+                title
+            }
+            
+            showNotification(notificationTitle, content, channelId, guildId)
         } catch (e: Exception) {
-            showNotification("Discord", String(message), "", "")
             android.util.Log.e(TAG, "Error handling message", e)
+            showNotification("Discord", String(message), "", "")
         }
     }
 
@@ -285,7 +309,7 @@ class UnifiedPushHelper private constructor(context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(getContext(), CHANNEL_ID)
+        val notificationBuilder = NotificationCompat.Builder(getContext(), CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
             .setSmallIcon(R.drawable.ic_notification)
@@ -294,12 +318,30 @@ class UnifiedPushHelper private constructor(context: Context) {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            // Let the system default sound play normally
-            .build()
+        
+        // For content-rich notifications, use big text style
+        if (content.length > 40 || content.contains("\n")) {
+            notificationBuilder.setStyle(NotificationCompat.BigTextStyle().bigText(content))
+        }
+        
+        val notification = notificationBuilder.build()
 
-        // Using a fixed notification ID ensures we replace existing notifications
-        // instead of creating new ones each time
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        // Determine notification ID based on selected style
+        when (preferencesManager.getNotificationStyle()) {
+            PreferencesManager.NOTIFICATION_STYLE_SINGLE -> {
+                // Current approach - single notification with timestamp update
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            }
+            PreferencesManager.NOTIFICATION_STYLE_MULTI -> {
+                // Multiple notifications with content - use random ID for each notification
+                val notificationId = random.nextInt(10000) + 1001 // Avoid using the fixed ID
+                notificationManager.notify(notificationId, notification)
+            }
+            PreferencesManager.NOTIFICATION_STYLE_HYBRID -> {
+                // Hybrid - single notification with content updates
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            }
+        }
     }
     
     fun onNewEndpoint(newEndpoint: String) {

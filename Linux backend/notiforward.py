@@ -241,14 +241,42 @@ logging.info(f"Loaded endpoint: {endpoint}")
 
 def extract_notification_content(text):
     logging.debug(f"Extracting content from: {text}")
-    # Look for the notification body between the app name and the first array
+    
+    # Extract app name
+    app_match = re.search(r'string "([^"]+)"', text)
+    app_name = app_match.group(1) if app_match else "Discord"
+    
+    # Look for notification title and body
     body_match = re.search(r'string "([^"]+)"\s+uint32 \d+\s+string "([^"]+)"', text)
+    title = "Discord"
+    content = "New message"
+    
     if body_match:
+        # First match is usually app name, second is content
         content = body_match.group(2)
         logging.debug(f"Extracted content: {content}")
-        return content
-    logging.debug("No content found, using default message")
-    return "New Discord notification"
+        
+        # Try to extract sender from content
+        sender_match = re.search(r'^([^:]+): (.+)$', content)
+        if sender_match:
+            sender = sender_match.group(1).strip()
+            pure_content = sender_match.group(2).strip()
+            return json.dumps({
+                "title": title,
+                "content": pure_content,
+                "sender": sender,
+                "channel_id": "",
+                "guild_id": ""
+            })
+    
+    # If we couldn't parse out sender, just send the basic content
+    return json.dumps({
+        "title": title,
+        "content": content,
+        "sender": "",
+        "channel_id": "",
+        "guild_id": ""
+    })
 
 def main():
     try:
@@ -284,8 +312,8 @@ def main():
                 current_notification = []
                 
                 # Check for Vesktop
-                if 'dev.vencord.Vesktop' in full_notif or 'string "vesktop"' in full_notif:
-                    logging.info("Matched Vesktop notification!")
+                if 'dev.vencord.Vesktop' in full_notif or 'string "vesktop"' in full_notif or 'string "Discord"' in full_notif:
+                    logging.info("Matched Discord notification!")
                     notification_content = extract_notification_content(full_notif)
                     
                     # Check if this is a duplicate notification
@@ -307,7 +335,7 @@ def main():
                         res = requests.post(
                             endpoint,
                             data=notification_content,
-                            headers={"Content-Type": "text/plain"},
+                            headers={"Content-Type": "application/json"},
                             timeout=10
                         )
                         

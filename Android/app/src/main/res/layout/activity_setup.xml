@@ -60,6 +60,15 @@
         android:backgroundTint="@color/blurple"
         android:text="Select Different Distributor"
         android:visibility="gone" />
+        
+    <Button
+        android:id="@+id/notificationStyleButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="@color/blurple"
+        android:text="Notification Style"
+        android:visibility="visible" />
 
     <Button
         android:id="@+id/continueButton"

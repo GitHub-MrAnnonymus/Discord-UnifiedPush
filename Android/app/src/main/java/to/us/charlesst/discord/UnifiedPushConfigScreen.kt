@@ -8,6 +8,8 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -24,6 +26,7 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
     private lateinit var statusTextView: TextView
     private lateinit var retryButton: Button
     private lateinit var selectDistributorButton: Button
+    private lateinit var notificationStyleButton: Button
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +43,7 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
         statusTextView = findViewById(R.id.statusTextView)
         retryButton = findViewById(R.id.retryButton)
         selectDistributorButton = findViewById(R.id.selectDistributorButton)
+        notificationStyleButton = findViewById(R.id.notificationStyleButton)
         
         copyButton.setOnClickListener {
             pushHelper.endpoint.value?.let { endpoint ->
@@ -75,6 +79,10 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
         
         selectDistributorButton.setOnClickListener {
             showDistributorSelectionDialog()
+        }
+        
+        notificationStyleButton.setOnClickListener {
+            showNotificationStyleDialog()
         }
         
         continueButton.setOnClickListener {
@@ -127,6 +135,40 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
         copyButton.isEnabled = false
         
         pushHelper.register()
+    }
+    
+    private fun showNotificationStyleDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.notification_style_dialog, null)
+        val radioGroup = dialogView.findViewById<RadioGroup>(R.id.notificationStyleGroup)
+        
+        // Set the current style as selected
+        val currentStyle = preferencesManager.getNotificationStyle()
+        when (currentStyle) {
+            PreferencesManager.NOTIFICATION_STYLE_SINGLE -> 
+                dialogView.findViewById<RadioButton>(R.id.styleSingle).isChecked = true
+            PreferencesManager.NOTIFICATION_STYLE_MULTI -> 
+                dialogView.findViewById<RadioButton>(R.id.styleMulti).isChecked = true
+            PreferencesManager.NOTIFICATION_STYLE_HYBRID -> 
+                dialogView.findViewById<RadioButton>(R.id.styleHybrid).isChecked = true
+        }
+        
+        AlertDialog.Builder(this)
+            .setTitle("Notification Style")
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                // Save the selected notification style
+                val selectedStyle = when (radioGroup.checkedRadioButtonId) {
+                    R.id.styleSingle -> PreferencesManager.NOTIFICATION_STYLE_SINGLE
+                    R.id.styleMulti -> PreferencesManager.NOTIFICATION_STYLE_MULTI
+                    R.id.styleHybrid -> PreferencesManager.NOTIFICATION_STYLE_HYBRID
+                    else -> PreferencesManager.NOTIFICATION_STYLE_SINGLE
+                }
+                
+                preferencesManager.setNotificationStyle(selectedStyle)
+                Toast.makeText(this, "Notification style saved", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
     
     private fun forceResetNextPush() {

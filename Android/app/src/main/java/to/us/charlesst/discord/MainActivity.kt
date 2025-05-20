@@ -5,6 +5,8 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
@@ -12,11 +14,14 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import android.view.WindowManager
 
 
 class MainActivity : AppCompatActivity() {
@@ -34,6 +39,11 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, UnifiedPushConfigScreen::class.java))
             finish()
             return
+        }
+        
+        // Check if notification style preference has been set
+        if (!preferencesManager.isNotificationStyleSet()) {
+            showNotificationStylePrompt()
         }
         
         // Set up window insets
@@ -110,6 +120,49 @@ class MainActivity : AppCompatActivity() {
         intent?.data?.let { uri ->
             webView.loadUrl(uri.toString())
         } ?: webView.loadUrl("https://discord.com/app")
+    }
+    
+    private fun showNotificationStylePrompt() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.notification_style_dialog, null)
+        val radioGroup = dialogView.findViewById<RadioGroup>(R.id.notificationStyleGroup)
+        
+        // Set the current style as selected
+        val currentStyle = preferencesManager.getNotificationStyle()
+        when (currentStyle) {
+            PreferencesManager.NOTIFICATION_STYLE_SINGLE -> 
+                dialogView.findViewById<RadioButton>(R.id.styleSingle).isChecked = true
+            PreferencesManager.NOTIFICATION_STYLE_MULTI -> 
+                dialogView.findViewById<RadioButton>(R.id.styleMulti).isChecked = true
+            PreferencesManager.NOTIFICATION_STYLE_HYBRID -> 
+                dialogView.findViewById<RadioButton>(R.id.styleHybrid).isChecked = true
+        }
+        
+        AlertDialog.Builder(this)
+            .setTitle("New Feature: Notification Styles")
+            .setMessage("This update adds support for different notification styles. How would you like your Discord notifications to appear?")
+            .setView(dialogView)
+            .setCancelable(false)
+            .setPositiveButton("Save") { _, _ ->
+                // Save the selected notification style
+                val selectedStyle = when (radioGroup.checkedRadioButtonId) {
+                    R.id.styleSingle -> PreferencesManager.NOTIFICATION_STYLE_SINGLE
+                    R.id.styleMulti -> PreferencesManager.NOTIFICATION_STYLE_MULTI
+                    R.id.styleHybrid -> PreferencesManager.NOTIFICATION_STYLE_HYBRID
+                    else -> PreferencesManager.NOTIFICATION_STYLE_SINGLE
+                }
+                
+                preferencesManager.setNotificationStyle(selectedStyle)
+                
+                // Show a toast to confirm
+                val styleName = when (selectedStyle) {
+                    PreferencesManager.NOTIFICATION_STYLE_SINGLE -> "Single Notification"
+                    PreferencesManager.NOTIFICATION_STYLE_MULTI -> "Multiple Notifications"
+                    PreferencesManager.NOTIFICATION_STYLE_HYBRID -> "Hybrid Style"
+                    else -> "Default Style"
+                }
+                Toast.makeText(this, "Using $styleName", Toast.LENGTH_SHORT).show()
+            }
+            .show()
     }
     
     override fun onBackPressed() {
