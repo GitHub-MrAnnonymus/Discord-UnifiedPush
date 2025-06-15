@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="Gradle: com.github.UnifiedPush:android-connector:2.1.1@aar" external-system-id="GRADLE">
+    <CLASSES>
+      <root url="file://$USER_HOME$/.gradle/caches/8.11.1/transforms/7c32a44e4d28bf376ccee00a6a62bead/transformed/android-connector-2.1.1/AndroidManifest.xml" />
+      <root url="jar://$USER_HOME$/.gradle/caches/8.11.1/transforms/7c32a44e4d28bf376ccee00a6a62bead/transformed/android-connector-2.1.1/jars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.UnifiedPush/android-connector/2.1.1/837b02a92803f6b797ae46a553a088bcecab5017/android-connector-2.1.1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

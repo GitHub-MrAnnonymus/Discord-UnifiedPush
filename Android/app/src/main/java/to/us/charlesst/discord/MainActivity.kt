@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -34,6 +35,7 @@ class MainActivity : AppCompatActivity() {
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private lateinit var preferencesManager: PreferencesManager
     private lateinit var pushHelper: UnifiedPushHelper
+    private lateinit var webView: WebView
     
     // Permission request for notifications
     private val requestPermissionLauncher = registerForActivityResult(
@@ -45,6 +47,22 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, 
                 "Notification permission denied. You may not receive message notifications.", 
                 Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    // Permission request for WebRTC
+    private val requestWebRTCPermissions = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val cameraGranted = permissions[Manifest.permission.CAMERA] ?: false
+        val audioGranted = permissions[Manifest.permission.RECORD_AUDIO] ?: false
+        
+        if (cameraGranted && audioGranted) {
+            Toast.makeText(this, "WebRTC permissions granted - Voice/Video calls enabled", Toast.LENGTH_LONG).show()
+        } else if (audioGranted) {
+            Toast.makeText(this, "Audio permission granted - Voice calls enabled", Toast.LENGTH_LONG).show()
+        } else {
+            Toast.makeText(this, "WebRTC permissions denied - Voice/Video calls may not work", Toast.LENGTH_LONG).show()
         }
     }
     
@@ -62,6 +80,9 @@ class MainActivity : AppCompatActivity() {
         
         // Check notification permission
         checkNotificationPermission()
+        
+        // Check WebRTC permissions
+        checkWebRTCPermissions()
         
         // Check if notification style preference has been set
         if (!preferencesManager.isNotificationStyleSet()) {
@@ -85,58 +106,8 @@ class MainActivity : AppCompatActivity() {
         // Initialize notification helpers
         NotificationHelper.createNotificationChannel(this)
         
-        val webView: WebView = findViewById(R.id.webview)
-        
-        // Set dark background color to prevent white flash
-        webView.setBackgroundColor(Color.parseColor("#36393F"))
-        
-        CookieManager.getInstance().setAcceptCookie(true)
-        val webSettings: WebSettings = webView.settings
-        webView.settings.javaScriptEnabled = true
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                super.onPageStarted(view, url, favicon)
-                // Maintain dark background during page load
-                view?.setBackgroundColor(Color.parseColor("#36393F"))
-            }
-            
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
-                // Keep dark background after page load completed
-                view?.setBackgroundColor(Color.parseColor("#36393F"))
-                
-                // Apply dark background to page body
-                view?.evaluateJavascript("""
-                    document.body.style.backgroundColor = '#36393F';
-                """.trimIndent(), null)
-            }
-        }
-        webView.settings.userAgentString = "Android (+https://github.com/charles8191/discord)"
-        webSettings.domStorageEnabled = true
-        webSettings.allowFileAccess = true
-        webSettings.mediaPlaybackRequiresUserGesture = false
-        
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onPermissionRequest(request: PermissionRequest) {
-                request.grant(request.resources)
-            }
-            
-            override fun onShowFileChooser(
-                webView: WebView,
-                filePathCallback: ValueCallback<Array<Uri>>,
-                fileChooserParams: FileChooserParams
-            ): Boolean {
-                fileChooserCallback = filePathCallback
-                val intent = fileChooserParams.createIntent()
-                try {
-                    startActivityForResult(intent, 0)
-                } catch (e: ActivityNotFoundException) {
-                    fileChooserCallback = null
-                    return false
-                }
-                return true
-            }
-        }
+        webView = findViewById(R.id.webview)
+        setupWebView()
         
         // Handle deep linking
         intent?.data?.let { uri ->
@@ -221,7 +192,6 @@ class MainActivity : AppCompatActivity() {
     }
     
     override fun onBackPressed() {
-        val webView: WebView = findViewById(R.id.webview)
         if (webView.canGoBack()) {
             webView.goBack()
         } else {
@@ -238,5 +208,181 @@ class MainActivity : AppCompatActivity() {
             fileChooserCallback?.onReceiveValue(null)
         }
         fileChooserCallback = null
+    }
+    
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Update user agent when orientation changes
+        updateUserAgent()
+    }
+    
+    private fun checkWebRTCPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+        
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.CAMERA)
+        }
+        
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+        }
+        
+        if (permissionsToRequest.isNotEmpty()) {
+            requestWebRTCPermissions.launch(permissionsToRequest.toTypedArray())
+        }
+    }
+    
+    private fun getOrientationBasedUserAgent(): String {
+        return when (resources.configuration.orientation) {
+            Configuration.ORIENTATION_LANDSCAPE -> {
+                // Desktop Chrome user agent for WebRTC functionality
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            else -> {
+                // Android user agent for mobile UI
+                "Mozilla/5.0 (Linux; Android 13; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 (+https://github.com/charles8191/discord)"
+            }
+        }
+    }
+    
+    private fun updateUserAgent() {
+        val newUserAgent = getOrientationBasedUserAgent()
+        if (webView.settings.userAgentString != newUserAgent) {
+            webView.settings.userAgentString = newUserAgent
+            // Reload to apply new user agent
+            webView.reload()
+            
+            val orientation = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                "Desktop mode (WebRTC enabled)"
+            } else {
+                "Mobile mode"
+            }
+            Toast.makeText(this, "Switched to $orientation", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun setupWebView() {
+        // Set dark background color to prevent white flash
+        webView.setBackgroundColor(Color.parseColor("#36393F"))
+        
+        // Enable debugging for development
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
+        
+        CookieManager.getInstance().setAcceptCookie(true)
+        val webSettings: WebSettings = webView.settings
+        
+        // Basic WebView settings
+        webSettings.javaScriptEnabled = true
+        webSettings.domStorageEnabled = true
+        webSettings.allowFileAccess = true
+        webSettings.allowContentAccess = true
+        webSettings.allowFileAccessFromFileURLs = true
+        webSettings.allowUniversalAccessFromFileURLs = true
+        
+        // WebRTC specific settings
+        webSettings.mediaPlaybackRequiresUserGesture = false
+        webSettings.databaseEnabled = true
+        webSettings.setGeolocationEnabled(true)
+        
+        // Set initial user agent based on current orientation
+        webSettings.userAgentString = getOrientationBasedUserAgent()
+        
+        // Enhanced settings for better performance
+        webSettings.cacheMode = WebSettings.LOAD_DEFAULT
+        webSettings.setRenderPriority(WebSettings.RenderPriority.HIGH)
+        webSettings.setEnableSmoothTransition(true)
+        
+        // Mixed content mode for HTTPS sites with HTTP resources
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+        }
+        
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                // Maintain dark background during page load
+                view?.setBackgroundColor(Color.parseColor("#36393F"))
+            }
+            
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                // Keep dark background after page load completed
+                view?.setBackgroundColor(Color.parseColor("#36393F"))
+                
+                // Apply dark background to page body and enable WebRTC APIs
+                view?.evaluateJavascript("""
+                    // Set dark background
+                    document.body.style.backgroundColor = '#36393F';
+                    
+                    // Enable getUserMedia polyfill if needed
+                    if (!navigator.mediaDevices && navigator.getUserMedia) {
+                        navigator.mediaDevices = {};
+                        navigator.mediaDevices.getUserMedia = function(constraints) {
+                            var getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+                            if (!getUserMedia) {
+                                return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
+                            }
+                            return new Promise(function(resolve, reject) {
+                                getUserMedia.call(navigator, constraints, resolve, reject);
+                            });
+                        };
+                    }
+                    
+                    // Log WebRTC capability
+                    console.log('WebRTC support: ', {
+                        getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+                        RTCPeerConnection: !!(window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection),
+                        userAgent: navigator.userAgent
+                    });
+                """.trimIndent(), null)
+            }
+        }
+        
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest) {
+                // Grant WebRTC permissions automatically if app permissions are granted
+                val appPermissions = request.resources.all { resource ->
+                    when (resource) {
+                        PermissionRequest.RESOURCE_VIDEO_CAPTURE -> 
+                            ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                        PermissionRequest.RESOURCE_AUDIO_CAPTURE -> 
+                            ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                        else -> true
+                    }
+                }
+                
+                if (appPermissions) {
+                    request.grant(request.resources)
+                } else {
+                    request.deny()
+                    Toast.makeText(this@MainActivity, "WebRTC permissions needed for voice/video calls", Toast.LENGTH_LONG).show()
+                }
+            }
+            
+            override fun onShowFileChooser(
+                webView: WebView,
+                filePathCallback: ValueCallback<Array<Uri>>,
+                fileChooserParams: FileChooserParams
+            ): Boolean {
+                fileChooserCallback = filePathCallback
+                val intent = fileChooserParams.createIntent()
+                try {
+                    startActivityForResult(intent, 0)
+                } catch (e: ActivityNotFoundException) {
+                    fileChooserCallback = null
+                    return false
+                }
+                return true
+            }
+            
+            override fun onGeolocationPermissionsShowPrompt(
+                origin: String?,
+                callback: android.webkit.GeolocationPermissions.Callback?
+            ) {
+                callback?.invoke(origin, true, false)
+            }
+        }
     }
 }
