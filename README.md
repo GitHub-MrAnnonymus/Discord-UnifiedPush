@@ -16,6 +16,13 @@ This project has two main components:
 
 The system listens to DBus for Discord notifications and forwards them via UnifiedPush to your mobile device.
 
+## **Quick info on WebRTC support**
+WebRTC support on Discord can be a bit hit or miss, especially when using mobile browsers like Vanadium. When I tried using it, I noticed the mic and deafen buttons were colored red, meaning they weren’t functional. My solution was to default to loading the Discord website with the user agent set to a generic Android one. However, when I switch my phone to landscape mode, I change the user agent to a generic desktop one. This trick allows WebRTC to work.
+
+The reason for this is that the desktop version of Discord doesn’t play well with mobile screen layouts—it’s not very responsive. So by using this workaround, I can get the desktop version's functionality when the phone is in landscape, but the mobile version's layout when in portrait. In short: Portrait = no WebRTC, Landscape = WebRTC.
+
+-That behavior is present on pretty much all Android browsers not just Vanadium
+
 ## **Migration to the latest version that has customizable notifications**
 Phone:
 1. Clear app data from Discord
