@@ -344,8 +344,21 @@ class UnifiedPushHelper private constructor(context: Context) {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVisibility(getNotificationVisibility())
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+        
+        // Create a public version for lock screen (without sensitive content)
+        val publicNotification = NotificationCompat.Builder(getContext(), CHANNEL_ID)
+            .setContentTitle("Discord")
+            .setContentText("New message received")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .build()
+        
+        notificationBuilder.setPublicVersion(publicNotification)
         
         // Only use BigTextStyle for content-rich notifications in multi and hybrid styles
         if (notificationStyle != PreferencesManager.NOTIFICATION_STYLE_SINGLE) {
@@ -426,9 +439,30 @@ class UnifiedPushHelper private constructor(context: Context) {
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 250, 250, 250)
             setShowBadge(true)
+            // Respect system lock screen notification settings
+            lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
             // No custom sound set, will use system default
         }
         notificationManager.createNotificationChannel(channel)
+    }
+    
+    private fun getNotificationVisibility(): Int {
+        // Check the user's notification style preference
+        val notificationStyle = preferencesManager.getNotificationStyle()
+        
+        return when (notificationStyle) {
+            PreferencesManager.NOTIFICATION_STYLE_SINGLE -> {
+                // For single notification style, don't show content on lock screen
+                NotificationCompat.VISIBILITY_PRIVATE
+            }
+            PreferencesManager.NOTIFICATION_STYLE_MULTI, 
+            PreferencesManager.NOTIFICATION_STYLE_HYBRID -> {
+                // For multi and hybrid styles, use PRIVATE to respect system settings
+                // This will show content only if user allows it in system settings
+                NotificationCompat.VISIBILITY_PRIVATE
+            }
+            else -> NotificationCompat.VISIBILITY_PRIVATE
+        }
     }
 
     private fun buildDiscordUrl(channelId: String, guildId: String): String {
