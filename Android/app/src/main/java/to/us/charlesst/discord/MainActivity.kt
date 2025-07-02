@@ -306,6 +306,42 @@ class MainActivity : AppCompatActivity() {
                 view?.setBackgroundColor(Color.parseColor("#36393F"))
             }
             
+            override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                val url = request?.url?.toString() ?: return false
+                android.util.Log.d("DiscordWebView", "Loading URL: $url")
+                
+                // Check if this is a Discord internal URL
+                val isDiscordInternal = url.startsWith("https://discord.com") || 
+                                       url.startsWith("https://cdn.discordapp.com") ||
+                                       url.startsWith("https://media.discordapp.net") ||
+                                       url.startsWith("https://discordapp.com") ||
+                                       url.contains("discord.com") ||
+                                       url.contains("discordapp.com") ||
+                                       url.contains("discordapp.net")
+                
+                return if (isDiscordInternal) {
+                    // Handle Discord URLs internally in the WebView
+                    android.util.Log.d("DiscordWebView", "Loading Discord internal URL in WebView: $url")
+                    view?.loadUrl(url)
+                    true
+                } else {
+                    // Open external URLs in system browser
+                    android.util.Log.d("DiscordWebView", "Opening external URL in system browser: $url")
+                    try {
+                        val context = view?.context
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context?.startActivity(intent)
+                        return true
+                    } catch (e: Exception) {
+                        android.util.Log.e("DiscordWebView", "Failed to open external URL: $url", e)
+                        // Fallback to loading in WebView if browser intent fails
+                        view?.loadUrl(url)
+                        return true
+                    }
+                }
+            }
+            
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 // Keep dark background after page load completed
