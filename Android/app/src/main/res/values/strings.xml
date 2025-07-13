@@ -2,4 +2,26 @@
     <string name="app_name">Discord</string>
     <string name="unified_push_url">UnifiedPush URL: %1$s</string>
     <string name="unified_push_failed">Failed to initialize UnifiedPush distributor</string>
+    
+    <!-- Settings Preference Service strings -->
+    <string name="pref_notification_style_title">Notification Style</string>
+    <string name="pref_notification_style_description">Choose how Discord notifications appear</string>
+    <string name="notification_style_single">Single Notification</string>
+    <string name="notification_style_multi">Multiple Notifications</string>
+    <string name="notification_style_hybrid">Hybrid Style</string>
+    
+    <string name="pref_push_distributor_title">Push Distributor</string>
+    <string name="pref_push_distributor_description">Select which UnifiedPush distributor to use</string>
+    
+    <string name="pref_endpoint_url_title">Push Endpoint URL</string>
+    <string name="pref_endpoint_url_description">Current UnifiedPush endpoint URL</string>
+    <string name="endpoint_not_available">No endpoint available</string>
+    
+    <!-- Additional notification preferences -->
+    <string name="pref_enable_notifications_title">Enable Notifications</string>
+    <string name="pref_enable_notifications_description">Allow Discord to show notifications</string>
+    <string name="pref_notification_sound_title">Notification Sound</string>
+    <string name="pref_notification_sound_description">Play sound for Discord notifications</string>
+    <string name="pref_vibration_enabled_title">Vibration</string>
+    <string name="pref_vibration_enabled_description">Vibrate for Discord notifications</string>
 </resources>

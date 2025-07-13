@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "to.us.charlesst.discord"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "to.us.charlesst.discord"
         minSdk = 31
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 110
         versionName = "1.1.0"
 
@@ -33,6 +33,10 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
+        freeCompilerArgs += listOf(
+            "-Xopt-in=kotlin.RequiresOptIn",
+            "-Xopt-in=android.annotation.RequiresApi"
+        )
     }
 }
 

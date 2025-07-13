@@ -1,8 +1,8 @@
 <component name="libraryTable">
   <library name="Gradle: com.github.UnifiedPush:android-connector:2.1.1@aar" external-system-id="GRADLE">
     <CLASSES>
-      <root url="file://$USER_HOME$/.gradle/caches/8.11.1/transforms/7c32a44e4d28bf376ccee00a6a62bead/transformed/android-connector-2.1.1/AndroidManifest.xml" />
-      <root url="jar://$USER_HOME$/.gradle/caches/8.11.1/transforms/7c32a44e4d28bf376ccee00a6a62bead/transformed/android-connector-2.1.1/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/.gradle/caches/8.13/transforms/4c7b87fc4096c58b30e349f5b147cb45/transformed/android-connector-2.1.1/AndroidManifest.xml" />
+      <root url="jar://$USER_HOME$/.gradle/caches/8.13/transforms/4c7b87fc4096c58b30e349f5b147cb45/transformed/android-connector-2.1.1/jars/classes.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>

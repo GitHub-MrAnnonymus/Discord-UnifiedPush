@@ -17,6 +17,15 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
+        // Add Android 16 preview repositories
+        maven { 
+            name = "Google Maven Preview"
+            url = uri("https://maven.google.com/")
+        }
+        maven { 
+            name = "AOSP Snapshots"
+            url = uri("https://androidx.dev/snapshots/builds/latest/repository")
+        }
     }
 }
 

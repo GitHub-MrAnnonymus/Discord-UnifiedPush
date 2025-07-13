@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.BIND_SETTINGS_PREFERENCE_SERVICE" />
     
     <!-- WebRTC permissions -->
     <uses-permission android:name="android.permission.CAMERA" />
@@ -59,6 +60,21 @@
                 <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED"/>
             </intent-filter>
         </receiver>
+        
+        <!-- Settings Preference Service for Android API 36+ only -->
+        <service
+            android:name=".DiscordSettingsPreferenceService"
+            android:exported="true"
+            android:enabled="true"
+            android:permission="android.permission.BIND_SETTINGS_PREFERENCE_SERVICE"
+            tools:targetApi="36">
+            <intent-filter>
+                <action android:name="android.service.settings.preferences.SettingsPreferenceService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.settings.preferences.category"
+                android:value="CATEGORY_APPS" />
+        </service>
         
         <activity
             android:name=".UnifiedPushConfigScreen"

@@ -28,12 +28,30 @@ class PreferencesManager(context: Context) {
     fun isNotificationStyleSet(): Boolean {
         return prefs.getBoolean(KEY_NOTIFICATION_STYLE_SET, false)
     }
+    
+    fun getCurrentDistributor(): String {
+        return prefs.getString(KEY_CURRENT_DISTRIBUTOR, "") ?: ""
+    }
+    
+    fun setCurrentDistributor(distributor: String) {
+        prefs.edit().putString(KEY_CURRENT_DISTRIBUTOR, distributor).apply()
+    }
+    
+    fun getCurrentEndpoint(): String {
+        return prefs.getString(KEY_CURRENT_ENDPOINT, "") ?: ""
+    }
+    
+    fun setCurrentEndpoint(endpoint: String) {
+        prefs.edit().putString(KEY_CURRENT_ENDPOINT, endpoint).apply()
+    }
 
     companion object {
         private const val PREFS_NAME = "DiscordPrefs"
         private const val KEY_FIRST_LAUNCH = "first_launch"
         private const val KEY_NOTIFICATION_STYLE = "notification_style"
         private const val KEY_NOTIFICATION_STYLE_SET = "notification_style_set"
+        private const val KEY_CURRENT_DISTRIBUTOR = "current_distributor"
+        private const val KEY_CURRENT_ENDPOINT = "current_endpoint"
         
         // Notification style constants
         const val NOTIFICATION_STYLE_SINGLE = 0 // Current approach - single notification with timestamp update

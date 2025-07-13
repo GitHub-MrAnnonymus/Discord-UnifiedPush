@@ -71,24 +71,18 @@ class UnifiedPushHelper private constructor(context: Context) {
             val savedDistributor = UnifiedPush.getDistributor(getContext())
             android.util.Log.d(TAG, "Current saved distributor: $savedDistributor")
             
-            // Special case for NextPush - it often needs a clean start
-            if (savedDistributor.contains("nextpush", ignoreCase = true) || 
-                currentDistributors.any { it.contains("nextpush", ignoreCase = true) }) {
-                
-                handleNextPushRegistration(savedDistributor, currentDistributors)
-                return
-            }
-            
             if (currentDistributors.size == 1) {
                 // Only one distributor available, use it
                 val distributorToUse = currentDistributors[0]
                 android.util.Log.d(TAG, "Only one distributor available, using: $distributorToUse")
                 UnifiedPush.saveDistributor(getContext(), distributorToUse)
+                preferencesManager.setCurrentDistributor(distributorToUse)
                 UnifiedPush.registerApp(getContext())
             } else if (savedDistributor.isNotEmpty() && currentDistributors.contains(savedDistributor)) {
                 // We have a saved distributor, use it
                 android.util.Log.d(TAG, "Using saved distributor: $savedDistributor")
                 UnifiedPush.saveDistributor(getContext(), savedDistributor)
+                preferencesManager.setCurrentDistributor(savedDistributor)
                 UnifiedPush.registerApp(getContext())
             } else {
                 // Multiple distributors, let the system handle selection
@@ -97,6 +91,7 @@ class UnifiedPushHelper private constructor(context: Context) {
                 
                 // Clear any distributor selection
                 UnifiedPush.saveDistributor(getContext(), "")
+                preferencesManager.setCurrentDistributor("")
                 
                 // Then register
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -109,150 +104,7 @@ class UnifiedPushHelper private constructor(context: Context) {
         }
     }
     
-    private fun handleNextPushRegistration(savedDistributor: String, currentDistributors: List<String>) {
-        android.util.Log.d(TAG, "Detected NextPush, using deep fix with NextPushFixer")
-        
-        // Use the specialized NextPush fixer for a deeper fix
-        val fixer = NextPushFixer(getContext())
-        fixer.fixNextPush {
-            // This is called when the fix is complete
-            android.util.Log.d(TAG, "NextPush deep fix complete, proceeding with registration")
-            
-            // Run on main thread
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                // Find NextPush in the distributor list
-                val nextPushPackage = currentDistributors.find { it.contains("nextpush", ignoreCase = true) }
-                
-                if (nextPushPackage != null) {
-                    android.util.Log.d(TAG, "Registering with fixed NextPush: $nextPushPackage")
-                    
-                    // Save the distributor
-                    UnifiedPush.saveDistributor(getContext(), nextPushPackage)
-                    
-                    // Register with a delay
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        // Try to register
-                        UnifiedPush.registerApp(getContext())
-                        
-                        // Check for success after a delay
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            checkNextPushRegistration()
-                        }, 5000)
-                    }, 2000)
-                } else {
-                    android.util.Log.d(TAG, "NextPush not found in available distributors after fix")
-                    fallbackToNtfy()
-                }
-            }
-        }
-    }
-    
-    /**
-     * Fall back to NTFY distributor if available
-     */
-    private fun fallbackToNtfy() {
-        android.util.Log.d(TAG, "Attempting to fall back to NTFY distributor")
-        
-        // Check if NTFY is available
-        val distributors = UnifiedPush.getDistributors(getContext())
-        val ntfyDistributor = distributors.find { 
-            it.contains("ntfy", ignoreCase = true) || 
-            it.contains("sh.elim", ignoreCase = true)
-        }
-        
-        if (ntfyDistributor != null) {
-            android.util.Log.d(TAG, "Using NTFY distributor: $ntfyDistributor")
-            
-            // Save the distributor
-            UnifiedPush.saveDistributor(getContext(), ntfyDistributor)
-            
-            // Register with a delay
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                UnifiedPush.registerApp(getContext())
-            }, 1000)
-        } else {
-            android.util.Log.d(TAG, "No suitable distributor found, trying default")
-            
-            // Just try registering with any distributor
-            val anyDistributor = distributors.firstOrNull()
-            if (anyDistributor != null) {
-                UnifiedPush.saveDistributor(getContext(), anyDistributor)
-                UnifiedPush.registerApp(getContext())
-            } else {
-                android.util.Log.e(TAG, "No distributors available")
-                onRegistrationFailed()
-            }
-        }
-    }
-    
-    /**
-     * Check if NextPush registration was successful and retry if needed
-     */
-    private fun checkNextPushRegistration() {
-        val upPrefs = getContext().getSharedPreferences("org.unifiedpush.android.connector_preferences", Context.MODE_PRIVATE)
-        val token = upPrefs.getString("token", null)
-        
-        if (token == null) {
-            android.util.Log.d(TAG, "NextPush registration check: No token found, retrying")
-            
-            // Try one more direct registration attempt
-            val currentDistributors = UnifiedPush.getDistributors(getContext())
-            val nextPushPackage = currentDistributors.find { it.contains("nextpush", ignoreCase = true) }
-            
-            if (nextPushPackage != null) {
-                // Try once more with minimal delay
-                UnifiedPush.registerApp(getContext())
-            }
-        } else {
-            android.util.Log.d(TAG, "NextPush registration check: Token found, registration successful")
-        }
-    }
-    
-    /**
-     * Configure NextPush specific preferences to avoid internal errors
-     */
-    private fun configureNextPushPreferences() {
-        try {
-            // Try direct NextPush app preferences configuration
-            val nextPushSettings = getContext().getSharedPreferences("org.unifiedpush.distributor.nextpush_preferences", Context.MODE_PRIVATE)
-            nextPushSettings.edit().apply {
-                // Clear any existing values first
-                clear()
-                
-                // Set to use Direct account type instead of SSO which is more reliable
-                putString("account_type", "Direct")
-                
-                // Set a direct server URL for the NextPush instance
-                // This should be updated to match your NextPush server
-                putString("server_url", "https://nextpush.unifiedpush.org/")
-                
-                // Disable any gateway requirements
-                putBoolean("use_matrix_gateway", false)
-                putBoolean("bypass_matrix_gateway", true)
-                
-                // General settings that might help
-                putBoolean("keep_alive", true)
-                putString("keep_alive_interval", "60")
-                
-                // Clear device ID to force new registration
-                putString("device_id", null)
-                
-                // Ensure battery optimization is disabled
-                putBoolean("ignore_battery_optimization", true)
-                
-                // Apply changes
-                apply()
-            }
-            
-            // Also clear any device registration data to force a clean registration
-            val appStore = getContext().getSharedPreferences("org.unifiedpush.distributor.nextpush.AppStore", Context.MODE_PRIVATE)
-            appStore.edit().clear().apply()
-            
-            android.util.Log.d(TAG, "Successfully configured NextPush preferences")
-        } catch (e: Exception) {
-            android.util.Log.w(TAG, "Could not configure NextPush app preferences: ${e.message}")
-        }
-    }
+
 
     fun handleMessage(message: ByteArray) {
         try {
@@ -397,11 +249,13 @@ class UnifiedPushHelper private constructor(context: Context) {
         }
         
         endpoint.postValue(newEndpoint)
+        preferencesManager.setCurrentEndpoint(newEndpoint)
     }
     
     fun onRegistrationFailed() {
         android.util.Log.e(TAG, "Registration failed")
         endpoint.postValue(null)
+        preferencesManager.setCurrentEndpoint("")
         
         // Try to register with a different distributor after a delay
         val currentDistributor = UnifiedPush.getDistributor(getContext())
@@ -416,6 +270,7 @@ class UnifiedPushHelper private constructor(context: Context) {
                 // Try with a different distributor after a delay
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                     UnifiedPush.saveDistributor(getContext(), newDistributor)
+                    preferencesManager.setCurrentDistributor(newDistributor)
                     UnifiedPush.registerApp(getContext())
                 }, 1000)
             }
@@ -425,6 +280,7 @@ class UnifiedPushHelper private constructor(context: Context) {
     fun onUnregistered() {
         android.util.Log.d(TAG, "Unregistered from push service")
         endpoint.postValue(null)
+        preferencesManager.setCurrentEndpoint("")
     }
 
     private fun createNotificationChannel() {
