@@ -41,9 +41,6 @@ RUN dnf update -y && dnf install -y \
     curl \
     && dnf clean all
 
-# Update pip and setuptools first
-RUN python3 -m pip install --no-cache-dir --upgrade pip
-
 # Create appuser
 RUN useradd -m -s /bin/bash appuser
 
@@ -59,31 +56,13 @@ COPY supervisord.conf /etc/supervisor/supervisord.conf
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Install notiforward with updated secure dependencies
+# Install notiforward
 RUN mkdir -p /opt/notiforward
 COPY ["Linux backend/notiforward.py", "/opt/notiforward/"]
 COPY requirements.txt /opt/notiforward/
-
-# Install packages in stages for better error handling and compatibility
-RUN cd /opt/notiforward && \
-    # First upgrade core packages
-    python3 -m pip install --no-cache-dir --upgrade \
-        "setuptools>=78.1.0" \
-        "pip>=24.0" && \
-    # Install secure versions of vulnerable packages
-    python3 -m pip install --no-cache-dir --upgrade \
-        "urllib3>=2.5.0" \
-        "cryptography>=45.0.0" \
-        "requests>=2.32.0" && \
-    # Install JWT crypto packages
-    python3 -m pip install --no-cache-dir --upgrade \
-        "jwcrypto>=1.5.6" && \
-    # Install remaining dependencies
-    python3 -m pip install --no-cache-dir --upgrade \
-        "rich>=13.0.0" && \
-    # Install from requirements as fallback
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
-    chown -R appuser:appuser /opt/notiforward
+RUN cd /opt/notiforward \
+    && pip3 install --no-cache-dir -r requirements.txt \
+    && chown -R appuser:appuser /opt/notiforward
 
 # Create notiforward config
 RUN mkdir -p /home/appuser/.config/notiforward && \

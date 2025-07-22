@@ -1,7 +1,6 @@
-# Core dependencies - versions will be handled in Dockerfile
-rich
-requests
-cryptography
-jwcrypto
-urllib3
-setuptools 
+rich>=13.0.0
+requests>=2.32.0
+cryptography>=45.0.0
+jwcrypto>=1.5.6
+urllib3>=2.5.0
+setuptools>=78.1.0 
