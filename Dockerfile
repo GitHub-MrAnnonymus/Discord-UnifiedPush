@@ -22,8 +22,13 @@ RUN dnf update -y && dnf install -y \
     python3 \
     python3-pip \
     python3-dbus \
-    python3-dev \
+    python3-devel \
     gcc \
+    gcc-c++ \
+    rust \
+    cargo \
+    openssl-devel \
+    libffi-devel \
     git \
     procps-ng \
     net-tools \
