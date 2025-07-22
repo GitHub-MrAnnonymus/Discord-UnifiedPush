@@ -23,6 +23,7 @@ RUN dnf update -y && dnf install -y \
     python3-pip \
     python3-dbus \
     python3-devel \
+    python3-virtualenv \
     gcc \
     gcc-c++ \
     rust \
