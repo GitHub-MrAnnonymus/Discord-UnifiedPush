@@ -31,23 +31,18 @@ RUN dnf update -y && dnf install -y \
     lsof \
     htop \
     wget \
-    fuse \
-    libva \
-    squashfs-tools \
+    curl \
     && dnf clean all
 
 # Create appuser
 RUN useradd -m -s /bin/bash appuser
 
-# Download and extract Vesktop AppImage
+# Download and install Vesktop RPM from vencord.dev
 RUN mkdir -p /opt/vesktop && \
-    wget -q https://github.com/Vencord/Vesktop/releases/download/v1.5.6/Vesktop-1.5.6.AppImage -O /opt/vesktop/vesktop.AppImage && \
-    chmod +x /opt/vesktop/vesktop.AppImage && \
-    cd /opt/vesktop && \
-    ./vesktop.AppImage --appimage-extract && \
-    mv squashfs-root/* . && \
-    rm -rf squashfs-root vesktop.AppImage && \
-    chown -R appuser:appuser /opt/vesktop
+    wget -q https://vencord.dev/download/vesktop/amd64/rpm -O /tmp/vesktop.rpm && \
+    dnf install -y /tmp/vesktop.rpm && \
+    rm /tmp/vesktop.rpm && \
+    chown -R appuser:appuser /opt/vesktop || true
 
 # Copy configuration files
 COPY supervisord.conf /etc/supervisor/supervisord.conf
@@ -60,7 +55,7 @@ COPY ["Linux backend/notiforward.py", "/opt/notiforward/"]
 COPY requirements.txt /opt/notiforward/
 RUN cd /opt/notiforward \
     && pip3 install -r requirements.txt requests \
-    && pip3 install cryptography==44.0.1 jwcrypto==1.5.6 \
+    && pip3 install --upgrade cryptography==45.0.5 jwcrypto==1.5.6 \
     && chown -R appuser:appuser /opt/notiforward
 
 # Create notiforward config

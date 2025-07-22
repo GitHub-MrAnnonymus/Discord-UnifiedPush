@@ -1,2 +1,4 @@
 rich
-requests 
+requests
+cryptography>=45.0.5
+jwcrypto>=1.5.6 
