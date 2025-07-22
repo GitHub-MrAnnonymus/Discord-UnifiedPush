@@ -22,6 +22,8 @@ RUN dnf update -y && dnf install -y \
     python3 \
     python3-pip \
     python3-dbus \
+    python3-dev \
+    gcc \
     git \
     procps-ng \
     net-tools \
@@ -34,8 +36,8 @@ RUN dnf update -y && dnf install -y \
     curl \
     && dnf clean all
 
-# Update pip and core packages first
-RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools==78.1.1
+# Update pip and setuptools first
+RUN python3 -m pip install --no-cache-dir --upgrade pip
 
 # Create appuser
 RUN useradd -m -s /bin/bash appuser
@@ -57,17 +59,26 @@ RUN mkdir -p /opt/notiforward
 COPY ["Linux backend/notiforward.py", "/opt/notiforward/"]
 COPY requirements.txt /opt/notiforward/
 
-# Install all packages with explicit versions and no cache
-RUN cd /opt/notiforward \
-    && python3 -m pip install --no-cache-dir --upgrade \
-        setuptools==78.1.1 \
-        urllib3==2.5.0 \
-        cryptography==45.0.5 \
-        jwcrypto==1.5.6 \
-        requests>=2.32.0 \
-        rich>=13.0.0 \
-    && python3 -m pip install --no-cache-dir -r requirements.txt \
-    && chown -R appuser:appuser /opt/notiforward
+# Install packages in stages for better error handling and compatibility
+RUN cd /opt/notiforward && \
+    # First upgrade core packages
+    python3 -m pip install --no-cache-dir --upgrade \
+        "setuptools>=78.1.0" \
+        "pip>=24.0" && \
+    # Install secure versions of vulnerable packages
+    python3 -m pip install --no-cache-dir --upgrade \
+        "urllib3>=2.5.0" \
+        "cryptography>=45.0.0" \
+        "requests>=2.32.0" && \
+    # Install JWT crypto packages
+    python3 -m pip install --no-cache-dir --upgrade \
+        "jwcrypto>=1.5.6" && \
+    # Install remaining dependencies
+    python3 -m pip install --no-cache-dir --upgrade \
+        "rich>=13.0.0" && \
+    # Install from requirements as fallback
+    python3 -m pip install --no-cache-dir -r requirements.txt && \
+    chown -R appuser:appuser /opt/notiforward
 
 # Create notiforward config
 RUN mkdir -p /home/appuser/.config/notiforward && \
