@@ -22,14 +22,12 @@ RUN dnf update -y && dnf install -y \
     python3 \
     python3-pip \
     python3-dbus \
-    python3-devel \
-    python3-virtualenv \
-    gcc \
-    gcc-c++ \
-    rust \
-    cargo \
-    openssl-devel \
-    libffi-devel \
+    python3-setuptools \
+    python3-requests \
+    python3-cryptography \
+    python3-rich \
+    python3-urllib3 \
+    python3-jwcrypto \
     git \
     procps-ng \
     net-tools \
@@ -60,9 +58,7 @@ RUN chmod +x /entrypoint.sh
 # Install notiforward
 RUN mkdir -p /opt/notiforward
 COPY ["Linux backend/notiforward.py", "/opt/notiforward/"]
-COPY requirements.txt /opt/notiforward/
 RUN cd /opt/notiforward \
-    && pip3 install --no-cache-dir -r requirements.txt \
     && chown -R appuser:appuser /opt/notiforward
 
 # Create notiforward config
