@@ -1,6 +1,7 @@
 package to.us.charlesst.discord
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -22,7 +23,7 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -163,9 +164,7 @@ class MainActivity : AppCompatActivity() {
                 dialogView.findViewById<RadioButton>(R.id.styleHybrid).isChecked = true
         }
         
-        AlertDialog.Builder(this)
-            .setTitle("New Feature: Notification Styles")
-            .setMessage("This update adds support for different notification styles. How would you like your Discord notifications to appear?")
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this, R.style.DiscordAlertDialogTheme)
             .setView(dialogView)
             .setCancelable(false)
             .setPositiveButton("Save") { _, _ ->

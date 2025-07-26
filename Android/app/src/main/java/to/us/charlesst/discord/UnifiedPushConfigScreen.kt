@@ -13,6 +13,7 @@ import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import org.unifiedpush.android.connector.UnifiedPush
@@ -130,8 +131,7 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
                 dialogView.findViewById<RadioButton>(R.id.styleHybrid).isChecked = true
         }
         
-        AlertDialog.Builder(this)
-            .setTitle("Notification Style")
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this, R.style.DiscordAlertDialogTheme)
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
                 // Save the selected notification style

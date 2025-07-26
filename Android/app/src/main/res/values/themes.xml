@@ -6,4 +6,19 @@
     </style>
 
     <style name="Theme.Discord" parent="Base.Theme.Discord" />
+    
+    <!-- Custom AlertDialog theme for Discord styling -->
+    <style name="DiscordAlertDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">@color/discord_grey</item>
+        <item name="colorOnSurface">@color/discord_text</item>
+        <item name="colorPrimary">@color/blurple</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:background">@color/discord_grey</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/DiscordDialogTextStyle</item>
+    </style>
+    
+    <!-- Custom dialog text style -->
+    <style name="DiscordDialogTextStyle" parent="MaterialAlertDialog.Material3.Body.Text">
+        <item name="android:textColor">@color/discord_text</item>
+    </style>
 </resources>

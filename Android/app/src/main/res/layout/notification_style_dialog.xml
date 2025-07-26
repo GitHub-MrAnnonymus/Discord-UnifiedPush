@@ -1,66 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:background="@color/discord_grey"
+    android:padding="24dp">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Choose Notification Style"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="16dp"/>
-
+    <!-- Radio Button Options -->
     <RadioGroup
         android:id="@+id/notificationStyleGroup"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp">
 
-        <RadioButton
+        <!-- Single Notification Option -->
+        <com.google.android.material.radiobutton.MaterialRadioButton
             android:id="@+id/styleSingle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Single Notification (Update Timestamp)"
-            android:layout_marginBottom="8dp"/>
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="@color/discord_text"
+            android:layout_marginBottom="8dp"
+            app:buttonTint="@color/blurple" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Only one notification in status bar that gets updated"
-            android:textSize="12sp"
-            android:layout_marginStart="32dp"
-            android:layout_marginBottom="16dp"/>
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/discord_text"
+            android:alpha="0.7"
+            android:layout_marginStart="48dp"
+            android:layout_marginBottom="24dp" />
 
-        <RadioButton
+        <!-- Multiple Notifications Option -->
+        <com.google.android.material.radiobutton.MaterialRadioButton
             android:id="@+id/styleMulti"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Multiple Notifications with Content"
-            android:layout_marginBottom="8dp"/>
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="@color/discord_text"
+            android:layout_marginBottom="8dp"
+            app:buttonTint="@color/blurple" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Show all notifications with sender and message content"
-            android:textSize="12sp"
-            android:layout_marginStart="32dp"
-            android:layout_marginBottom="16dp"/>
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/discord_text"
+            android:alpha="0.7"
+            android:layout_marginStart="48dp"
+            android:layout_marginBottom="24dp" />
 
-        <RadioButton
+        <!-- Hybrid Option -->
+        <com.google.android.material.radiobutton.MaterialRadioButton
             android:id="@+id/styleHybrid"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Hybrid - Single Notification with Content"
-            android:layout_marginBottom="8dp"/>
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="@color/discord_text"
+            android:layout_marginBottom="8dp"
+            app:buttonTint="@color/blurple" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="One notification that gets updated with latest message content"
-            android:textSize="12sp"
-            android:layout_marginStart="32dp"
-            android:layout_marginBottom="16dp"/>
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/discord_text"
+            android:alpha="0.7"
+            android:layout_marginStart="48dp" />
+
     </RadioGroup>
+
 </LinearLayout> 
