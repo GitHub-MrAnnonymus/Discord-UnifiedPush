@@ -1,0 +1,70 @@
+version: 2
+updates:
+  # Android Gradle dependencies
+  - package-ecosystem: "gradle"
+    directory: "/Android/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "mrannonymus"
+    commit-message:
+      prefix: "android"
+      prefix-development: "android-dev"
+      include: "scope"
+    groups:
+      androidx:
+        patterns:
+          - "androidx.*"
+        update-types:
+          - "minor"
+          - "patch"
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "kotlin*"
+        update-types:
+          - "minor"
+          - "patch"
+      google:
+        patterns:
+          - "com.google.*"
+        update-types:
+          - "minor"
+          - "patch"
+      unifiedpush:
+        patterns:
+          - "*unifiedpush*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "mrannonymus"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "mrannonymus"
+    commit-message:
+      prefix: "docker"
+      include: "scope" 
