@@ -57,8 +57,8 @@ sudo -u appuser dbus-launch --sh-syntax > /tmp/dbus-session-vars.sh
 source /tmp/dbus-session-vars.sh
 echo "D-Bus session started at $DBUS_SESSION_BUS_ADDRESS"
 
-# Make sure notification daemon is running
-sudo -u appuser /usr/libexec/notification-daemon &
+# Make sure notification daemon is running (Arch Linux path)
+sudo -u appuser /usr/lib/notification-daemon-1.0/notification-daemon &
 
 # Store additional environment variables for other processes
 echo "export DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" > /tmp/dbus-session-vars.sh

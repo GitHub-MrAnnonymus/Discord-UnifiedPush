@@ -1,33 +1,30 @@
-FROM fedora:42
+FROM archlinux:latest
 
-# Install system dependencies
-RUN dnf update -y && dnf install -y \
-    tigervnc-server \
-    novnc \
+# Update package database and install system dependencies
+RUN pacman -Syu --noconfirm && pacman -S --noconfirm \
+    tigervnc \
+    python-pip \
     supervisor \
-    xorg-x11-server-Xvfb \
-    xorg-x11-xauth \
-    xorg-x11-fonts-misc \
-    xorg-x11-fonts-Type1 \
-    xorg-x11-font-utils \
+    xorg-server \
+    xorg-xauth \
+    xorg-fonts-misc \
     xterm \
     libxcb \
     xcb-util \
-    mesa-libGL \
-    mesa-dri-drivers \
-    dbus-x11 \
-    dbus-tools \
-    notification-daemon \
+    mesa \
+    mesa-utils \
+    dbus \
     libnotify \
-    python3 \
-    python3-pip \
-    python3-dbus \
-    python3-setuptools \
-    python3-requests \
-    python3-cryptography \
-    python3-rich \
-    python3-urllib3 \
-    python3-jwcrypto \
+    notification-daemon \
+    python \
+    python-setuptools \
+    python-requests \
+    python-cryptography \
+    python-rich \
+    python-urllib3 \
+    python-jwcrypto \
+    python-pyjwt \
+    python-dbus \
     git \
     procps-ng \
     net-tools \
@@ -38,17 +35,29 @@ RUN dnf update -y && dnf install -y \
     htop \
     wget \
     curl \
-    && dnf clean all
+    tar \
+    sudo \
+    nss \
+    && pacman -Scc --noconfirm
+
+# Install packages not available in official repos via pip
+RUN pip install --break-system-packages pywebpush websockify
+
+# Install novnc manually since it's not in official repos
+RUN git clone https://github.com/novnc/noVNC.git /usr/share/novnc && \
+    ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
 # Create appuser
 RUN useradd -m -s /bin/bash appuser
 
-# Download and install Vesktop RPM from vencord.dev
+# Download and install Vesktop from vencord.dev tar archive
 RUN mkdir -p /opt/vesktop && \
-    wget -q https://vencord.dev/download/vesktop/amd64/rpm -O /tmp/vesktop.rpm && \
-    dnf install -y /tmp/vesktop.rpm && \
-    rm /tmp/vesktop.rpm && \
-    chown -R appuser:appuser /opt/vesktop || true
+    wget -q https://vencord.dev/download/vesktop/amd64/tar -O /tmp/vesktop.tar.gz && \
+    tar -xzf /tmp/vesktop.tar.gz -C /opt/vesktop --strip-components=1 && \
+    rm /tmp/vesktop.tar.gz && \
+    chmod +x /opt/vesktop/vesktop && \
+    ln -s /opt/vesktop/vesktop /usr/bin/vesktop && \
+    chown -R appuser:appuser /opt/vesktop
 
 # Copy configuration files
 COPY supervisord.conf /etc/supervisor/supervisord.conf
@@ -75,6 +84,10 @@ RUN mkdir -p /home/appuser/.fluxbox && \
 RUN mkdir -p /home/appuser/.config/vesktop && \
     chown -R appuser:appuser /home/appuser/.config/vesktop
 
+# Create VAPID keys directory for Docker environment variable configuration
+RUN mkdir -p /opt/notiforward/keys && \
+    chown -R appuser:appuser /opt/notiforward/keys
+
 # Set up runtime directories
 RUN mkdir -p /var/log/supervisor \
     && chown -R appuser:appuser /var/log/supervisor
@@ -82,8 +95,8 @@ RUN mkdir -p /var/log/supervisor \
 # Expose only the noVNC port (not the raw VNC port)
 EXPOSE 6080
 
-# Volume for persistent Vesktop data
-VOLUME ["/home/appuser/.config/vesktop"]
+# Volume for persistent Vesktop data and VAPID keys
+VOLUME ["/home/appuser/.config/vesktop", "/opt/notiforward/keys"]
 
 # Set entrypoint
 ENTRYPOINT ["/entrypoint.sh"] 

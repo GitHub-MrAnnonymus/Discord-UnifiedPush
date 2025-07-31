@@ -6,15 +6,18 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.media.AudioAttributes
-import android.media.MediaPlayer
-import android.net.Uri
+import android.util.Base64
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.MutableLiveData
-import org.unifiedpush.android.connector.UnifiedPush
+import com.google.crypto.tink.subtle.EllipticCurves
 import org.json.JSONObject
+import org.unifiedpush.android.connector.UnifiedPush
 import java.lang.ref.WeakReference
+import java.security.KeyPairGenerator
+import java.security.SecureRandom
+import java.security.interfaces.ECPublicKey
+import java.security.spec.ECGenParameterSpec
 import java.util.Random
 
 private const val TAG = "UnifiedPush"
@@ -22,7 +25,7 @@ private const val TAG = "UnifiedPush"
 class UnifiedPushHelper private constructor(context: Context) {
     private val contextRef = WeakReference(context.applicationContext)
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    private val preferencesManager = PreferencesManager(context)
+    val preferencesManager = PreferencesManager(context)
     private val random = Random()
     
     val endpoint = MutableLiveData<String?>(null)
@@ -52,7 +55,7 @@ class UnifiedPushHelper private constructor(context: Context) {
     
     fun register() {
         val currentDistributors = UnifiedPush.getDistributors(getContext())
-        android.util.Log.d(TAG, "Registering with distributors: $currentDistributors")
+        android.util.Log.d(TAG, "Available distributors: $currentDistributors")
         
         // Update available distributors for the UI
         distributors.postValue(currentDistributors)
@@ -67,37 +70,56 @@ class UnifiedPushHelper private constructor(context: Context) {
             // Clear any existing endpoint before registering again
             endpoint.postValue(null)
             
-            // Get the stored distributor if it exists
-            val savedDistributor = UnifiedPush.getDistributor(getContext())
-            android.util.Log.d(TAG, "Current saved distributor: $savedDistributor")
+            // Check if there's already a saved distributor
+            val savedDistributor = UnifiedPush.getSavedDistributor(getContext())
+            android.util.Log.d(TAG, "Saved distributor: $savedDistributor")
             
-            if (currentDistributors.size == 1) {
-                // Only one distributor available, use it
-                val distributorToUse = currentDistributors[0]
-                android.util.Log.d(TAG, "Only one distributor available, using: $distributorToUse")
-                UnifiedPush.saveDistributor(getContext(), distributorToUse)
-                preferencesManager.setCurrentDistributor(distributorToUse)
-                UnifiedPush.registerApp(getContext())
-            } else if (savedDistributor.isNotEmpty() && currentDistributors.contains(savedDistributor)) {
-                // We have a saved distributor, use it
-                android.util.Log.d(TAG, "Using saved distributor: $savedDistributor")
-                UnifiedPush.saveDistributor(getContext(), savedDistributor)
+            if (savedDistributor != null && currentDistributors.contains(savedDistributor)) {
+                // Use existing saved distributor
+                android.util.Log.d(TAG, "Using existing saved distributor: $savedDistributor")
                 preferencesManager.setCurrentDistributor(savedDistributor)
-                UnifiedPush.registerApp(getContext())
+                
+                // Use VAPID only if enabled by user preference
+                if (preferencesManager.getVapidEnabled()) {
+                    val vapidKey = getVapidPublicKey()
+                    if (vapidKey != null) {
+                        android.util.Log.d(TAG, "Registering with VAPID (user enabled)")
+                        UnifiedPush.register(getContext(), "", vapid = vapidKey)
+                    } else {
+                        android.util.Log.d(TAG, "VAPID enabled but key generation failed, registering without")
+                        UnifiedPush.register(getContext())
+                    }
+                } else {
+                    android.util.Log.d(TAG, "VAPID disabled by user preference, registering without")
+                    UnifiedPush.register(getContext())
+                }
+                android.util.Log.d(TAG, "Registration initiated with saved distributor") 
+                
             } else {
-                // Multiple distributors, let the system handle selection
-                android.util.Log.d(TAG, "Multiple distributors, showing selection dialog")
-                // This will trigger the OS app picker dialog
+                // Try to use the first available distributor (like reference app does)
+                val firstDistributor = currentDistributors[0]
+                android.util.Log.d(TAG, "Saving first available distributor: $firstDistributor")
                 
-                // Clear any distributor selection
-                UnifiedPush.saveDistributor(getContext(), "")
-                preferencesManager.setCurrentDistributor("")
+                UnifiedPush.saveDistributor(getContext(), firstDistributor)
+                preferencesManager.setCurrentDistributor(firstDistributor)
                 
-                // Then register
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    UnifiedPush.registerApp(getContext())
-                }, 500)
+                // Use VAPID only if enabled by user preference for new distributors too
+                if (preferencesManager.getVapidEnabled()) {
+                    val vapidKey = getVapidPublicKey()
+                    if (vapidKey != null) {
+                        android.util.Log.d(TAG, "Registering new distributor with VAPID (user enabled)")
+                        UnifiedPush.register(getContext(), "", vapid = vapidKey)
+                    } else {
+                        android.util.Log.d(TAG, "VAPID enabled but key generation failed, registering without")
+                        UnifiedPush.register(getContext())
+                    }
+                } else {
+                    android.util.Log.d(TAG, "VAPID disabled by user preference, registering without")
+                    UnifiedPush.register(getContext())
+                }
+                android.util.Log.d(TAG, "Registration initiated with new distributor")
             }
+            
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Registration error", e)
             onRegistrationFailed()
@@ -173,21 +195,8 @@ class UnifiedPushHelper private constructor(context: Context) {
         // Get notification style
         val notificationStyle = preferencesManager.getNotificationStyle()
         
-        // For SINGLE style, always use generic notification without content
-        val displayTitle = if (notificationStyle == PreferencesManager.NOTIFICATION_STYLE_SINGLE) {
-            "Discord"
-        } else {
-            title
-        }
-        
-        // For SINGLE style, don't show message content
-        val displayContent = if (notificationStyle == PreferencesManager.NOTIFICATION_STYLE_SINGLE) {
-            "New Discord notification"
-        } else if (content.isBlank()) {
-            "New message"
-        } else {
-            content
-        }
+        val displayTitle = title
+        val displayContent = content.ifBlank { "New message" }
 
         val notificationBuilder = NotificationCompat.Builder(getContext(), CHANNEL_ID)
             .setContentTitle(displayTitle)
@@ -196,7 +205,7 @@ class UnifiedPushHelper private constructor(context: Context) {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setVisibility(getNotificationVisibility())
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
         
         // Create a public version for lock screen (without sensitive content)
@@ -212,21 +221,15 @@ class UnifiedPushHelper private constructor(context: Context) {
         
         notificationBuilder.setPublicVersion(publicNotification)
         
-        // Only use BigTextStyle for content-rich notifications in multi and hybrid styles
-        if (notificationStyle != PreferencesManager.NOTIFICATION_STYLE_SINGLE) {
-            if (content.length > 40 || content.contains("\n")) {
-                notificationBuilder.setStyle(NotificationCompat.BigTextStyle().bigText(displayContent))
-            }
+        // Use BigTextStyle for content-rich notifications
+        if (content.length > 40 || content.contains("\n")) {
+            notificationBuilder.setStyle(NotificationCompat.BigTextStyle().bigText(displayContent))
         }
         
         val notification = notificationBuilder.build()
 
         // Determine notification ID based on selected style
         when (notificationStyle) {
-            PreferencesManager.NOTIFICATION_STYLE_SINGLE -> {
-                // Current approach - single notification with timestamp update
-                notificationManager.notify(NOTIFICATION_ID, notification)
-            }
             PreferencesManager.NOTIFICATION_STYLE_MULTI -> {
                 // Multiple notifications with content - use random ID for each notification
                 val notificationId = random.nextInt(10000) + 1001 // Avoid using the fixed ID
@@ -234,6 +237,10 @@ class UnifiedPushHelper private constructor(context: Context) {
             }
             PreferencesManager.NOTIFICATION_STYLE_HYBRID -> {
                 // Hybrid - single notification with content updates
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            }
+            else -> {
+                // Default to hybrid behavior for any unknown styles
                 notificationManager.notify(NOTIFICATION_ID, notification)
             }
         }
@@ -258,7 +265,7 @@ class UnifiedPushHelper private constructor(context: Context) {
         preferencesManager.setCurrentEndpoint("")
         
         // Try to register with a different distributor after a delay
-        val currentDistributor = UnifiedPush.getDistributor(getContext())
+        val currentDistributor = UnifiedPush.getSavedDistributor(getContext()) ?: ""
         val availableDistributors = UnifiedPush.getDistributors(getContext())
         
         if (availableDistributors.size > 1 && currentDistributor.isNotEmpty()) {
@@ -271,7 +278,7 @@ class UnifiedPushHelper private constructor(context: Context) {
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                     UnifiedPush.saveDistributor(getContext(), newDistributor)
                     preferencesManager.setCurrentDistributor(newDistributor)
-                    UnifiedPush.registerApp(getContext())
+                    UnifiedPush.register(getContext())
                 }, 1000)
             }
         }
@@ -302,24 +309,7 @@ class UnifiedPushHelper private constructor(context: Context) {
         notificationManager.createNotificationChannel(channel)
     }
     
-    private fun getNotificationVisibility(): Int {
-        // Check the user's notification style preference
-        val notificationStyle = preferencesManager.getNotificationStyle()
-        
-        return when (notificationStyle) {
-            PreferencesManager.NOTIFICATION_STYLE_SINGLE -> {
-                // For single notification style, don't show content on lock screen
-                NotificationCompat.VISIBILITY_PRIVATE
-            }
-            PreferencesManager.NOTIFICATION_STYLE_MULTI, 
-            PreferencesManager.NOTIFICATION_STYLE_HYBRID -> {
-                // For multi and hybrid styles, use PRIVATE to respect system settings
-                // This will show content only if user allows it in system settings
-                NotificationCompat.VISIBILITY_PRIVATE
-            }
-            else -> NotificationCompat.VISIBILITY_PRIVATE
-        }
-    }
+
 
     private fun buildDiscordUrl(channelId: String, guildId: String): String {
         return when {
@@ -330,5 +320,58 @@ class UnifiedPushHelper private constructor(context: Context) {
             else -> 
                 "https://discord.com/app"
         }
+    }
+
+    // VAPID Support Methods
+    fun generateVapidKeys(): String? {
+        try {
+            android.util.Log.d(TAG, "Generating VAPID keys...")
+            
+            val keyPairGenerator = KeyPairGenerator.getInstance("EC")
+            val ecSpec = ECGenParameterSpec("secp256r1")
+            keyPairGenerator.initialize(ecSpec, SecureRandom())
+            
+            val keyPair = keyPairGenerator.generateKeyPair()
+            val publicKey = keyPair.public as ECPublicKey
+            
+            // Use Tink's EllipticCurves to properly encode the public key (like reference app)
+            val points = EllipticCurves.pointEncode(
+                EllipticCurves.CurveType.NIST_P256,
+                EllipticCurves.PointFormatType.UNCOMPRESSED,
+                publicKey.w
+            )
+            
+            // Base64 encode with URL_SAFE, NO_WRAP, and NO_PADDING (like reference app)
+            val vapidPublicKey = Base64.encodeToString(
+                points, 
+                Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
+            )
+            
+            android.util.Log.d(TAG, "Generated VAPID public key: $vapidPublicKey")
+            
+            // Store the public key
+            preferencesManager.setVapidPublicKey(vapidPublicKey)
+            
+            return vapidPublicKey
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Failed to generate VAPID keys", e)
+            return null
+        }
+    }
+    
+    fun getVapidPublicKey(): String? {
+        // Only return or generate VAPID keys if VAPID is enabled
+        if (!preferencesManager.getVapidEnabled()) {
+            return null
+        }
+        
+        var vapidKey = preferencesManager.getVapidPublicKey()
+        
+        if (vapidKey == null) {
+            // Generate new VAPID keys if none exist and VAPID is enabled
+            vapidKey = generateVapidKeys()
+        }
+        
+        return vapidKey
     }
 }

@@ -2,6 +2,13 @@
     <!-- Base application theme. -->
     <style name="Base.Theme.Discord" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <item name="colorPrimary">@color/blurple</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSurface">@color/discord_grey</item>
+        <item name="colorOnSurface">@color/discord_text</item>
+        <item name="android:statusBarColor">@color/discord_dark_grey</item>
+        <item name="android:navigationBarColor">@color/discord_dark_grey</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

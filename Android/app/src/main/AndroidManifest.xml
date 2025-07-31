@@ -50,16 +50,12 @@
             android:name=".SetupActivity"
             android:exported="false" />
             
-        <receiver 
-            android:name=".PushServiceImpl"
-            android:exported="true">
+        <service android:name=".PushServiceImpl"
+            android:exported="false">
             <intent-filter>
-                <action android:name="org.unifiedpush.android.connector.MESSAGE"/>
-                <action android:name="org.unifiedpush.android.connector.UNREGISTERED"/>
-                <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT"/>
-                <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED"/>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT"/>
             </intent-filter>
-        </receiver>
+        </service>
         
         <!-- Settings Preference Service for Android API 36+ only -->
         <service
@@ -78,6 +74,11 @@
         
         <activity
             android:name=".UnifiedPushConfigScreen"
-            android:exported="false"/>
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

@@ -1,4 +1,22 @@
 ---
+# Vesktop UnifiedPush Docker Compose Configuration (Arch Linux)
+# 
+# VAPID Configuration Options:
+# 1. Auto-generate VAPID keys (Recommended for most users):
+#    - Set VAPID_ENABLED=true and VAPID_AUTO_GENERATE=true
+#    - Keys will be generated automatically and persisted
+#
+# 2. Provide your own VAPID keys (Advanced users):
+#    - Set VAPID_ENABLED=true and VAPID_AUTO_GENERATE=false
+#    - Uncomment and fill in VAPID_PRIVATE_KEY and VAPID_PUBLIC_KEY
+#
+# 3. Disable VAPID (Not recommended):
+#    - Set VAPID_ENABLED=false
+#
+# Example UnifiedPush endpoints:
+# - ntfy.sh: https://ntfy.sh/your-unique-topic
+# - Your own ntfy: https://your-ntfy-server.com/your-topic
+# - Other UP distributors: https://your-distributor.com/endpoint
 
 services:
   vesktop-unifiedpush:
@@ -7,12 +25,34 @@ services:
     ports:
       - "6080:6080"
     environment:
-      - NTFY_URL=your-unified-push-endpoint-url
+      # Required: Your UnifiedPush endpoint URL
+      - NTFY_URL=https://ntfy.sh/your-unique-topic-here
+      
+      # Required: VNC password for desktop access
       - VNC_PASSWORD=your-secure-password
+      
+      # VAPID Configuration (Recommended for better push reliability)
+      - VAPID_ENABLED=true                    # Enable VAPID authentication
+      - VAPID_AUTO_GENERATE=true              # Auto-generate and persist VAPID keys
+      
+      # Advanced: Provide your own VAPID keys (uncomment if needed)
+      # - VAPID_AUTO_GENERATE=false
+      # - VAPID_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\nYourPrivateKeyHere\n-----END PRIVATE KEY-----
+      # - VAPID_PUBLIC_KEY=-----BEGIN PUBLIC KEY-----\nYourPublicKeyHere\n-----END PUBLIC KEY-----
+      
+      # Optional: Logging configuration
+      - ENABLE_LOGGING=true                   # Enable detailed logging
+      
     volumes:
       - vesktop-data:/home/appuser/.config/vesktop
+      - vapid-keys:/opt/notiforward/keys      # Persist VAPID keys between restarts
     restart: unless-stopped
 
 volumes:
   vesktop-data:
     driver: local
+  vapid-keys:
+    driver: local
+    
+# To view generated VAPID public key (useful for debugging):
+# docker logs vesktop-unifiedpush-arch | grep "VAPID public key"

@@ -2,10 +2,8 @@ package to.us.charlesst.discord
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.RadioButton
@@ -13,9 +11,9 @@ import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.unifiedpush.android.connector.UnifiedPush
 
 class UnifiedPushConfigScreen : AppCompatActivity() {
@@ -31,8 +29,9 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.blurple)
-        window.navigationBarColor = ContextCompat.getColor(this, R.color.blurple)
+        
+        // Use modern window insets handling instead of deprecated statusBarColor
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_setup)
         
         pushHelper = UnifiedPushHelper.getInstance(this)
@@ -48,17 +47,17 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
         
         copyButton.setOnClickListener {
             pushHelper.endpoint.value?.let { endpoint ->
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                val clip = ClipData.newPlainText("UnifiedPush Endpoint", endpoint)
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText(getString(R.string.unifiedpush_endpoint), endpoint)
                 clipboard.setPrimaryClip(clip)
-                Toast.makeText(this, "URL copied!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.url_copied, Toast.LENGTH_SHORT).show()
             } ?: run {
-                Toast.makeText(this, "No URL available to copy", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.no_url_available_copy, Toast.LENGTH_SHORT).show()
             }
         }
         
         retryButton.setOnClickListener {
-            statusTextView.text = "Registering with UnifiedPush..."
+            statusTextView.text = getString(R.string.setup_registering)
             pushHelper.register()
         }
         
@@ -80,13 +79,13 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
             if (endpoint != null) {
                 urlTextView.text = getString(R.string.unified_push_url, endpoint)
                 copyButton.isEnabled = true
-                statusTextView.text = "Successfully registered with UnifiedPush"
+                statusTextView.text = getString(R.string.setup_success)
                 retryButton.visibility = View.GONE
                 selectDistributorButton.visibility = View.GONE
                 continueButton.isEnabled = true
             } else {
-                urlTextView.text = "No endpoint available. Please check your UnifiedPush distributor."
-                statusTextView.text = "Registration failed. Try a different distributor or retry."
+                urlTextView.text = getString(R.string.no_endpoint_check_distributor)
+                statusTextView.text = getString(R.string.registration_failed_try_different)
                 copyButton.isEnabled = false
                 retryButton.visibility = View.VISIBLE
                 selectDistributorButton.visibility = View.VISIBLE
@@ -96,14 +95,14 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
         
         pushHelper.distributors.observe(this) { distributorList ->
             if (distributorList.isEmpty()) {
-                statusTextView.text = "No UnifiedPush distributors found. Please install one."
+                statusTextView.text = getString(R.string.no_distributors_found)
                 selectDistributorButton.visibility = View.GONE
             } else {
-                val currentDistributor = UnifiedPush.getDistributor(this)
+                val currentDistributor = UnifiedPush.getSavedDistributor(this) ?: ""
                 if (currentDistributor.isNotEmpty() && distributorList.contains(currentDistributor)) {
-                    statusTextView.text = "Using distributor: $currentDistributor"
+                    statusTextView.text = getString(R.string.using_distributor, currentDistributor)
                 } else {
-                    statusTextView.text = "Found distributors: ${distributorList.joinToString()}"
+                    statusTextView.text = getString(R.string.found_distributors, distributorList.joinToString())
                 }
                 selectDistributorButton.visibility = if (distributorList.size > 1) View.VISIBLE else View.GONE
             }
@@ -123,43 +122,40 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
         // Set the current style as selected
         val currentStyle = preferencesManager.getNotificationStyle()
         when (currentStyle) {
-            PreferencesManager.NOTIFICATION_STYLE_SINGLE -> 
-                dialogView.findViewById<RadioButton>(R.id.styleSingle).isChecked = true
             PreferencesManager.NOTIFICATION_STYLE_MULTI -> 
                 dialogView.findViewById<RadioButton>(R.id.styleMulti).isChecked = true
             PreferencesManager.NOTIFICATION_STYLE_HYBRID -> 
                 dialogView.findViewById<RadioButton>(R.id.styleHybrid).isChecked = true
+            else -> // Default to multi if unknown style
+                dialogView.findViewById<RadioButton>(R.id.styleMulti).isChecked = true
         }
         
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this, R.style.DiscordAlertDialogTheme)
+        MaterialAlertDialogBuilder(this, R.style.DiscordAlertDialogTheme)
             .setView(dialogView)
-            .setPositiveButton("Save") { _, _ ->
+            .setPositiveButton(R.string.save) { dialog, which ->
                 // Save the selected notification style
                 val selectedStyle = when (radioGroup.checkedRadioButtonId) {
-                    R.id.styleSingle -> PreferencesManager.NOTIFICATION_STYLE_SINGLE
                     R.id.styleMulti -> PreferencesManager.NOTIFICATION_STYLE_MULTI
                     R.id.styleHybrid -> PreferencesManager.NOTIFICATION_STYLE_HYBRID
-                    else -> PreferencesManager.NOTIFICATION_STYLE_SINGLE
+                    else -> PreferencesManager.NOTIFICATION_STYLE_MULTI
                 }
                 
                 preferencesManager.setNotificationStyle(selectedStyle)
-                Toast.makeText(this, "Notification style saved", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.notification_style_saved, Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
-    
-
     
     private fun showDistributorSelectionDialog() {
         val distributors = pushHelper.distributors.value ?: return
         if (distributors.isEmpty()) return
         
         AlertDialog.Builder(this)
-            .setTitle("Select UnifiedPush Distributor")
-            .setItems(distributors.toTypedArray()) { _, which ->
+            .setTitle(R.string.select_distributor_title)
+            .setItems(distributors.toTypedArray()) { dialog, which ->
                 val selected = distributors[which]
-                statusTextView.text = "Switching to distributor: $selected"
+                statusTextView.text = getString(R.string.switching_to_distributor, selected)
                 
                 // Save the selected distributor
                 UnifiedPush.saveDistributor(this, selected)
@@ -170,7 +166,7 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
                     pushHelper.register()
                 }, 500)
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 }

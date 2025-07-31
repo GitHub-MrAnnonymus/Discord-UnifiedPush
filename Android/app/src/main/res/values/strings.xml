@@ -6,7 +6,6 @@
     <!-- Settings Preference Service strings -->
     <string name="pref_notification_style_title">Notification Style</string>
     <string name="pref_notification_style_description">Choose how Discord notifications appear</string>
-    <string name="notification_style_single">Single Notification</string>
     <string name="notification_style_multi">Multiple Notifications</string>
     <string name="notification_style_hybrid">Hybrid Style</string>
     
@@ -24,4 +23,40 @@
     <string name="pref_notification_sound_description">Play sound for Discord notifications</string>
     <string name="pref_vibration_enabled_title">Vibration</string>
     <string name="pref_vibration_enabled_description">Vibrate for Discord notifications</string>
+    
+    <!-- Setup screen strings -->
+    <string name="setup_title">Discord UnifiedPush Setup</string>
+    <string name="setup_registering">Registering with UnifiedPush…</string>
+    <string name="setup_success">Successfully registered with UnifiedPush</string>
+    <string name="copy_url">Copy URL</string>
+    <string name="retry_registration">Retry Registration</string>
+    <string name="select_different_distributor">Select Different Distributor</string>
+    <string name="notification_style">Notification Style</string>
+    <string name="continue_text">Continue</string>
+    <string name="close">Close</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    
+    <!-- Error and status messages -->
+    <string name="no_endpoint_check_distributor">No endpoint available. Please check your UnifiedPush distributor.</string>
+    <string name="registration_failed_try_different">Registration failed. Try a different distributor or retry.</string>
+    <string name="no_distributors_found">No UnifiedPush distributors found. Please install one.</string>
+    <string name="found_distributors">Found distributors: %1$s</string>
+    <string name="using_distributor">Using distributor: %1$s</string>
+    <string name="notification_style_saved">Notification style saved</string>
+    <string name="show">Show</string>
+    <string name="switching_to_distributor">Switching to distributor: %1$s</string>
+    <string name="url_copied">URL copied!</string>
+    <string name="no_url_available_copy">No URL available to copy</string>
+    <string name="unifiedpush_endpoint">UnifiedPush Endpoint</string>
+    
+    <!-- Dialog strings -->
+    <string name="choose_notification_style">Choose Notification Style</string>
+    <string name="select_distributor_title">Select UnifiedPush Distributor</string>
+    
+    <!-- Notification style options -->
+    <string name="multi_notification_title">Multiple Notifications with Content</string>
+    <string name="multi_notification_desc">Show all notifications with sender and message content</string>
+    <string name="hybrid_notification_title">Hybrid - Single Notification with Content</string>
+    <string name="hybrid_notification_desc">One notification that gets updated with latest message content</string>
 </resources>

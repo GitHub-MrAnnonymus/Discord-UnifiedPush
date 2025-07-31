@@ -10,7 +10,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Discord UnifiedPush Setup"
+        android:text="@string/setup_title"
         android:textSize="24sp"
         android:textColor="@color/discord_text"
         android:layout_marginBottom="16dp"/>
@@ -19,7 +19,7 @@
         android:id="@+id/statusTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Registering with UnifiedPush..."
+        android:text="@string/setup_registering"
         android:textColor="@color/discord_text"
         android:gravity="center"
         android:layout_marginBottom="16dp"/>
@@ -40,7 +40,7 @@
         android:layout_marginBottom="16dp"
         android:backgroundTint="@color/blurple"
         android:enabled="false"
-        android:text="Copy URL"
+        android:text="@string/copy_url"
         android:visibility="visible" />
         
     <Button
@@ -49,7 +49,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:backgroundTint="@color/blurple"
-        android:text="Retry Registration"
+        android:text="@string/retry_registration"
         android:visibility="gone" />
         
     <Button
@@ -58,7 +58,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:backgroundTint="@color/blurple"
-        android:text="Select Different Distributor"
+        android:text="@string/select_different_distributor"
         android:visibility="gone" />
         
     <Button
@@ -67,14 +67,14 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:backgroundTint="@color/blurple"
-        android:text="Notification Style"
+        android:text="@string/notification_style"
         android:visibility="visible" />
 
     <Button
         android:id="@+id/continueButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Continue"
+        android:text="@string/continue_text"
         android:visibility="visible"
         android:backgroundTint="@color/blurple"/>
 

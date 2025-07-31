@@ -6,12 +6,10 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
@@ -23,10 +21,12 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.activity.OnBackPressedCallback
+import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -70,6 +70,17 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Setup modern back gesture handling
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    finish()
+                }
+            }
+        })
+        
         pushHelper = UnifiedPushHelper.getInstance(this)
         preferencesManager = PreferencesManager(this)
         
@@ -90,10 +101,8 @@ class MainActivity : AppCompatActivity() {
             showNotificationStylePrompt()
         }
         
-        // Set up window insets
+        // Use modern window insets handling instead of deprecated statusBarColor
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = Color.TRANSPARENT
-        window.navigationBarColor = Color.TRANSPARENT
         
         setContentView(R.layout.activity_main)
         
@@ -156,12 +165,12 @@ class MainActivity : AppCompatActivity() {
         // Set the current style as selected
         val currentStyle = preferencesManager.getNotificationStyle()
         when (currentStyle) {
-            PreferencesManager.NOTIFICATION_STYLE_SINGLE -> 
-                dialogView.findViewById<RadioButton>(R.id.styleSingle).isChecked = true
             PreferencesManager.NOTIFICATION_STYLE_MULTI -> 
                 dialogView.findViewById<RadioButton>(R.id.styleMulti).isChecked = true
             PreferencesManager.NOTIFICATION_STYLE_HYBRID -> 
                 dialogView.findViewById<RadioButton>(R.id.styleHybrid).isChecked = true
+            else -> // Default to multi if unknown style
+                dialogView.findViewById<RadioButton>(R.id.styleMulti).isChecked = true
         }
         
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this, R.style.DiscordAlertDialogTheme)
@@ -170,40 +179,32 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("Save") { _, _ ->
                 // Save the selected notification style
                 val selectedStyle = when (radioGroup.checkedRadioButtonId) {
-                    R.id.styleSingle -> PreferencesManager.NOTIFICATION_STYLE_SINGLE
                     R.id.styleMulti -> PreferencesManager.NOTIFICATION_STYLE_MULTI
                     R.id.styleHybrid -> PreferencesManager.NOTIFICATION_STYLE_HYBRID
-                    else -> PreferencesManager.NOTIFICATION_STYLE_SINGLE
+                    else -> PreferencesManager.NOTIFICATION_STYLE_MULTI
                 }
                 
                 preferencesManager.setNotificationStyle(selectedStyle)
                 
                 // Show a toast to confirm
                 val styleName = when (selectedStyle) {
-                    PreferencesManager.NOTIFICATION_STYLE_SINGLE -> "Single Notification"
                     PreferencesManager.NOTIFICATION_STYLE_MULTI -> "Multiple Notifications"
                     PreferencesManager.NOTIFICATION_STYLE_HYBRID -> "Hybrid Style"
-                    else -> "Default Style"
+                    else -> "Multiple Notifications"
                 }
                 Toast.makeText(this, "Using $styleName", Toast.LENGTH_SHORT).show()
             }
             .show()
     }
     
-    override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            @Suppress("DEPRECATION")
-            super.onBackPressed()
-        }
-    }
-    
+
+    @Deprecated("This method has been deprecated in favor of using the Activity Result API")
     override fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
+        @Suppress("DEPRECATION")
         super.onActivityResult(requestCode, resultCode, intent)
         
         if (requestCode == 0 && resultCode == RESULT_OK && intent != null && intent.data != null) {
-            fileChooserCallback?.onReceiveValue(arrayOf(Uri.parse(intent.dataString)))
+            fileChooserCallback?.onReceiveValue(arrayOf(intent.dataString!!.toUri()))
         } else {
             fileChooserCallback?.onReceiveValue(null)
         }
@@ -263,23 +264,20 @@ class MainActivity : AppCompatActivity() {
     
     private fun setupWebView() {
         // Set dark background color to prevent white flash
-        webView.setBackgroundColor(Color.parseColor("#36393F"))
+        webView.setBackgroundColor("#36393F".toColorInt())
         
         // Enable debugging for development
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            WebView.setWebContentsDebuggingEnabled(true)
-        }
+        WebView.setWebContentsDebuggingEnabled(true)
         
         CookieManager.getInstance().setAcceptCookie(true)
         val webSettings: WebSettings = webView.settings
         
         // Basic WebView settings
+        @Suppress("SetJavaScriptEnabled")
         webSettings.javaScriptEnabled = true
         webSettings.domStorageEnabled = true
         webSettings.allowFileAccess = true
         webSettings.allowContentAccess = true
-        webSettings.allowFileAccessFromFileURLs = true
-        webSettings.allowUniversalAccessFromFileURLs = true
         
         // WebRTC specific settings
         webSettings.mediaPlaybackRequiresUserGesture = false
@@ -291,19 +289,15 @@ class MainActivity : AppCompatActivity() {
         
         // Enhanced settings for better performance
         webSettings.cacheMode = WebSettings.LOAD_DEFAULT
-        webSettings.setRenderPriority(WebSettings.RenderPriority.HIGH)
-        webSettings.setEnableSmoothTransition(true)
         
         // Mixed content mode for HTTPS sites with HTTP resources
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-        }
+        webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 // Maintain dark background during page load
-                view?.setBackgroundColor(Color.parseColor("#36393F"))
+                view?.setBackgroundColor("#36393F".toColorInt())
             }
             
             override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
@@ -329,7 +323,7 @@ class MainActivity : AppCompatActivity() {
                     android.util.Log.d("DiscordWebView", "Opening external URL in system browser: $url")
                     try {
                         val context = view?.context
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         context?.startActivity(intent)
                         return true
@@ -345,7 +339,7 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 // Keep dark background after page load completed
-                view?.setBackgroundColor(Color.parseColor("#36393F"))
+                view?.setBackgroundColor("#36393F".toColorInt())
                 
                 // Apply dark background to page body and enable WebRTC APIs
                 view?.evaluateJavascript("""
@@ -405,6 +399,7 @@ class MainActivity : AppCompatActivity() {
                 fileChooserCallback = filePathCallback
                 val intent = fileChooserParams.createIntent()
                 try {
+                    @Suppress("DEPRECATION")
                     startActivityForResult(intent, 0)
                 } catch (e: ActivityNotFoundException) {
                     fileChooserCallback = null

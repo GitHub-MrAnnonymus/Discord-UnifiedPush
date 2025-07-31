@@ -5,5 +5,6 @@
     <color name="blurple">#5865F2</color>
     <color name="discord_grey">#313338</color>
     <color name="discord_light_grey">#383A40</color>
+    <color name="discord_dark_grey">#2B2D31</color>
     <color name="discord_text">#FFFFFF</color>
 </resources>

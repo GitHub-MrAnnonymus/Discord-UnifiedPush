@@ -29,8 +29,6 @@ class DiscordSettingsPreferenceService : SettingsPreferenceService() {
         private const val PREF_UNIFIEDPUSH_ENABLED = "unifiedpush_enabled"
     }
 
-    private val preferencesManager by lazy { PreferencesManager(this) }
-
     override fun onGetAllPreferenceMetadata(
         request: MetadataRequest,
         callback: OutcomeReceiver<MetadataResult, Exception>

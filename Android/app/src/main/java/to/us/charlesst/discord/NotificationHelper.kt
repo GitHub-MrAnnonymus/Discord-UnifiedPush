@@ -4,9 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioAttributes
-import android.media.RingtoneManager
-import android.net.Uri
-import androidx.core.app.NotificationCompat
+import androidx.core.net.toUri
 
 object NotificationHelper {
     private const val CHANNEL_ID = "discord_test_channel"
@@ -14,7 +12,7 @@ object NotificationHelper {
     fun createNotificationChannel(context: Context) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
-        val soundUri = Uri.parse("android.resource://${context.packageName}/raw/notification")
+        val soundUri = "android.resource://${context.packageName}/raw/notification".toUri()
         
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -33,21 +31,5 @@ object NotificationHelper {
         }
         
         notificationManager.createNotificationChannel(channel)
-    }
-    
-    fun showTestNotification(context: Context) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        val soundUri = Uri.parse("android.resource://${context.packageName}/raw/notification")
-        
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("Discord Test")
-            .setContentText("This is a test notification with sound")
-            .setSmallIcon(R.drawable.ic_notification)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSound(soundUri)
-            .build()
-        
-        notificationManager.notify(1001, notification)
     }
 } 
