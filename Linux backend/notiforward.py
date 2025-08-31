@@ -438,6 +438,11 @@ def extract_notification_content(text):
         # The 4th string value (index 3) is the content
         content = string_values[3]
         
+        # Check for failed parsing cases and provide fallback message
+        if content.lower().strip() == "vesktop:" or content.lower().strip() == "vesktop":
+            content = "Failed to parse message content, check Discord"
+            logging.warning(f"Detected failed content parsing, using fallback message")
+        
         logging.info(f"Extracted sender: '{sender}' and content: '{content}'")
     
     # Create response with JSON and text versions
