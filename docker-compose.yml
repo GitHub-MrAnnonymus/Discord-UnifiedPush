@@ -20,7 +20,7 @@
 
 services:
   vesktop-unifiedpush:
-    image: mrannonymus/vesktop-unifiedpush:latest
+    build: .
     container_name: vesktop-unifiedpush
     ports:
       - "6080:6080"

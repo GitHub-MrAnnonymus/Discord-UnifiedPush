@@ -67,12 +67,13 @@ echo "D-Bus session started at $DBUS_SESSION_BUS_ADDRESS"
 sudo -u appuser /usr/lib/notification-daemon-1.0/notification-daemon &
 
 # Store additional environment variables for other processes
-echo "export DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" > /tmp/dbus-session-vars.sh
-echo "export DBUS_SESSION_BUS_PID=$DBUS_SESSION_BUS_PID" >> /tmp/dbus-session-vars.sh
-echo "export DISPLAY=:${DISPLAY_NUM}" >> /tmp/dbus-session-vars.sh
-echo "export FLATPAK_GL_DRIVERS=dummy" >> /tmp/dbus-session-vars.sh
+sudo -u appuser bash -c "cat > /tmp/dbus-session-vars.sh << EOF
+export DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS
+export DBUS_SESSION_BUS_PID=$DBUS_SESSION_BUS_PID
+export DISPLAY=:${DISPLAY_NUM}
+export FLATPAK_GL_DRIVERS=dummy
+EOF"
 chmod +x /tmp/dbus-session-vars.sh
-chown appuser:appuser /tmp/dbus-session-vars.sh
 
 # Test D-Bus notification
 echo "Testing D-Bus notifications..."
