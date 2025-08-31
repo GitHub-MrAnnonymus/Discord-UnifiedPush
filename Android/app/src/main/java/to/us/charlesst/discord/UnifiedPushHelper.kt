@@ -146,10 +146,17 @@ class UnifiedPushHelper private constructor(context: Context) {
             }
             
             val title = json.optString("title", "Discord")
-            val content = json.optString("content", messageStr) // Use raw message as content if not in JSON
+            var content = json.optString("content", messageStr) // Use raw message as content if not in JSON
             val channelId = json.optString("channel_id", "")
             val guildId = json.optString("guild_id", "")
             val sender = json.optString("sender", "")
+            
+            // Check for failed parsing cases and provide fallback message
+            if (content.trim().equals("vesktop:", ignoreCase = true) || 
+                content.trim().equals("vesktop", ignoreCase = true)) {
+                content = "Failed to parse message content, check Discord"
+                android.util.Log.w(TAG, "Detected failed content parsing, using fallback message")
+            }
             
             android.util.Log.d(TAG, "Parsed notification - Title: $title, Content: $content, Sender: $sender")
             

@@ -57,6 +57,6 @@
     <!-- Notification style options -->
     <string name="multi_notification_title">Multiple Notifications with Content</string>
     <string name="multi_notification_desc">Show all notifications with sender and message content</string>
-    <string name="hybrid_notification_title">Hybrid - Single Notification with Content</string>
+    <string name="hybrid_notification_title">Single Notification with Content</string>
     <string name="hybrid_notification_desc">One notification that gets updated with latest message content</string>
 </resources>
