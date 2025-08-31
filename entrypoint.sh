@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+sudo rm -rf /tmp
+
 # Use display :2 to avoid conflicts
 export DISPLAY_NUM=2
 export DISPLAY=:${DISPLAY_NUM}
