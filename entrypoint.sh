@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-sudo rm -rf /tmp
+# Clean up specific files instead of entire /tmp to preserve D-Bus sockets
+sudo rm -rf /tmp/.X*-lock /tmp/.X11-unix /tmp/dbus-session-vars.sh
 
 # Use display :2 to avoid conflicts
 export DISPLAY_NUM=2
