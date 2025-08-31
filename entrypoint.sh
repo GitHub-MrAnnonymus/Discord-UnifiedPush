@@ -54,8 +54,8 @@ chmod -R 700 /tmp/dbus
 # Use a dynamic D-Bus session and save the variables
 echo "Starting D-Bus session..."
 sudo -u appuser dbus-launch --sh-syntax > /tmp/dbus-session-vars.sh
-chmod +x /tmp/dbus-session-vars.sh
 chown appuser:appuser /tmp/dbus-session-vars.sh
+chmod 755 /tmp/dbus-session-vars.sh
 source /tmp/dbus-session-vars.sh
 echo "D-Bus session started at $DBUS_SESSION_BUS_ADDRESS"
 
