@@ -187,11 +187,16 @@ class UnifiedPushHelper private constructor(context: Context) {
             return
         }
 
-        val intent = Intent(getContext(), MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            data = buildDiscordUrl(channelId, guildId).toUri()
+        // Proxy build always opens Discord app, client build opens webview
+        val intent = if (BuildConfig.IS_PROXY_BUILD) {
+            createDiscordAppIntent(channelId, guildId)
+        } else {
+            Intent(getContext(), MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                data = buildDiscordUrl(channelId, guildId).toUri()
+            }
         }
-        
+
         val pendingIntent = PendingIntent.getActivity(
             getContext(),
             0,
@@ -320,12 +325,27 @@ class UnifiedPushHelper private constructor(context: Context) {
 
     private fun buildDiscordUrl(channelId: String, guildId: String): String {
         return when {
-            channelId.isNotEmpty() && guildId.isNotEmpty() -> 
+            channelId.isNotEmpty() && guildId.isNotEmpty() ->
                 "https://discord.com/channels/$guildId/$channelId"
-            channelId.isNotEmpty() -> 
+            channelId.isNotEmpty() ->
                 "https://discord.com/channels/@me/$channelId"
-            else -> 
+            else ->
                 "https://discord.com/app"
+        }
+    }
+
+    private fun createDiscordAppIntent(channelId: String, guildId: String): Intent {
+        // Discord uses HTTPS App Links, not discord:// scheme
+        // Build the same URL as buildDiscordUrl but force it to open in Discord app
+        val discordUrl = buildDiscordUrl(channelId, guildId)
+
+        android.util.Log.d(TAG, "Creating Discord app intent - channelId: '$channelId', guildId: '$guildId', URL: $discordUrl")
+
+        return Intent(Intent.ACTION_VIEW).apply {
+            data = discordUrl.toUri()
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            // Force the Discord app to handle this link
+            setPackage("com.discord")
         }
     }
 

@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -28,15 +31,57 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Signing config - reads from environment variables or keystore.properties
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val keystoreProperties = Properties()
+                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+                storeFile = file(keystoreProperties["storeFile"].toString())
+                storePassword = keystoreProperties["storePassword"].toString()
+                keyAlias = keystoreProperties["keyAlias"].toString()
+                keyPassword = keystoreProperties["keyPassword"].toString()
+            } else {
+                // Fall back to environment variables (for CI/CD)
+                storeFile = file(System.getenv("KEYSTORE_FILE") ?: "keystore.jks")
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+    }
+
+    flavorDimensions += "variant"
+    productFlavors {
+        create("client") {
+            dimension = "variant"
+            applicationIdSuffix = ""
+            resValue("string", "app_name", "Discord")
+            buildConfigField("boolean", "IS_PROXY_BUILD", "false")
+        }
+        create("proxy") {
+            dimension = "variant"
+            applicationIdSuffix = ".proxy"
+            resValue("string", "app_name", "Discord Proxy")
+            buildConfigField("boolean", "IS_PROXY_BUILD", "true")
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8

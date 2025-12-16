@@ -83,7 +83,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_NOTIFICATION_STYLE_SET = "notification_style_set"
         private const val KEY_CURRENT_DISTRIBUTOR = "current_distributor"
         private const val KEY_CURRENT_ENDPOINT = "current_endpoint"
-        
+
         // Notification style constants
         const val NOTIFICATION_STYLE_MULTI = 1 // Multiple notifications with content
         const val NOTIFICATION_STYLE_HYBRID = 2 // Single notification with content updates

@@ -26,17 +26,17 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
     private lateinit var retryButton: Button
     private lateinit var selectDistributorButton: Button
     private lateinit var notificationStyleButton: Button
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Use modern window insets handling instead of deprecated statusBarColor
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_setup)
-        
+
         pushHelper = UnifiedPushHelper.getInstance(this)
         preferencesManager = PreferencesManager(this)
-        
+
         urlTextView = findViewById(R.id.upUrlTextView)
         copyButton = findViewById(R.id.copyButton)
         continueButton = findViewById(R.id.continueButton)
@@ -44,7 +44,7 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
         retryButton = findViewById(R.id.retryButton)
         selectDistributorButton = findViewById(R.id.selectDistributorButton)
         notificationStyleButton = findViewById(R.id.notificationStyleButton)
-        
+
         copyButton.setOnClickListener {
             pushHelper.endpoint.value?.let { endpoint ->
                 val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
@@ -150,17 +150,17 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
     private fun showDistributorSelectionDialog() {
         val distributors = pushHelper.distributors.value ?: return
         if (distributors.isEmpty()) return
-        
+
         AlertDialog.Builder(this)
             .setTitle(R.string.select_distributor_title)
             .setItems(distributors.toTypedArray()) { dialog, which ->
                 val selected = distributors[which]
                 statusTextView.text = getString(R.string.switching_to_distributor, selected)
-                
+
                 // Save the selected distributor
                 UnifiedPush.saveDistributor(this, selected)
                 preferencesManager.setCurrentDistributor(selected)
-                
+
                 // Wait a moment before registering
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                     pushHelper.register()
