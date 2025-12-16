@@ -1,2 +1,11 @@
 Android/build/reports/problems/problems-report.html
 Android/app/release/
+
+# Keystore and signing
+*.jks
+*.keystore
+keystore.properties
+Android/keystore.properties
+
+# Build outputs
+Android/app/build/
