@@ -3,7 +3,6 @@ import java.io.FileInputStream
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.jetbrains.kotlin.android)
 }
 
 // Handle tink dependency conflicts for UnifiedPush 3.0.10
@@ -82,6 +81,7 @@ android {
 
     buildFeatures {
         buildConfig = true
+        resValues = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
