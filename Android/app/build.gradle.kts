@@ -7,7 +7,7 @@ plugins {
 
 // Handle tink dependency conflicts for UnifiedPush 3.0.10
 configurations.all {
-    val tink = "com.google.crypto.tink:tink:1.20.0"
+    val tink = "com.google.crypto.tink:tink:1.21.0"
     resolutionStrategy {
         force(tink)
         dependencySubstitution {
