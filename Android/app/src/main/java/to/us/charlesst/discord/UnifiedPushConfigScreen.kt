@@ -1,20 +1,31 @@
 package to.us.charlesst.discord
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.View
 import android.widget.Button
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.unifiedpush.android.connector.UnifiedPush
+
+private const val WEBVIEW_SENTINEL = "__webview__"
 
 class UnifiedPushConfigScreen : AppCompatActivity() {
     private lateinit var pushHelper: UnifiedPushHelper
@@ -26,6 +37,17 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
     private lateinit var retryButton: Button
     private lateinit var selectDistributorButton: Button
     private lateinit var notificationStyleButton: Button
+    private lateinit var notificationTargetButton: Button
+
+    private val requestNotificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            Toast.makeText(this, R.string.notification_permission_granted, Toast.LENGTH_SHORT).show()
+        } else {
+            showNotificationPermissionDeniedDialog()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +66,7 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
         retryButton = findViewById(R.id.retryButton)
         selectDistributorButton = findViewById(R.id.selectDistributorButton)
         notificationStyleButton = findViewById(R.id.notificationStyleButton)
+        notificationTargetButton = findViewById(R.id.notificationTargetButton)
 
         copyButton.setOnClickListener {
             pushHelper.endpoint.value?.let { endpoint ->
@@ -67,6 +90,10 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
         
         notificationStyleButton.setOnClickListener {
             showNotificationStyleDialog()
+        }
+
+        notificationTargetButton.setOnClickListener {
+            showNotificationTargetDialog()
         }
         
         continueButton.setOnClickListener {
@@ -147,6 +174,103 @@ class UnifiedPushConfigScreen : AppCompatActivity() {
             .show()
     }
     
+    private data class TargetOption(val label: String, val packageName: String?)
+
+    private fun showNotificationTargetDialog() {
+        val options = mutableListOf<TargetOption>()
+        options += TargetOption(getString(R.string.target_webview), WEBVIEW_SENTINEL)
+        options += TargetOption(getString(R.string.target_system_picker), null)
+
+        val pm = packageManager
+        // MATCH_ALL returns every candidate handler, not just the user's currently-
+        // chosen default. MATCH_DEFAULT_ONLY collapses to one result when Android sees
+        // a verified app link (which Discord and most forks register with autoVerify).
+        val seen = mutableSetOf<String>()
+        val probes = listOf(
+            "https://discord.com/channels/@me",
+            "https://discordapp.com/channels/@me",
+        )
+        for (url in probes) {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            for (info in pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)) {
+                val pkg = info.activityInfo?.packageName ?: continue
+                if (pkg == packageName) continue // skip self
+                if (!seen.add(pkg)) continue
+                val label = info.loadLabel(pm)?.toString().orEmpty().ifBlank { pkg }
+                options += TargetOption("$label ($pkg)", pkg)
+            }
+        }
+
+        val currentTarget = preferencesManager.getNotificationTarget()
+        val currentPkg = preferencesManager.getExternalAppPackage()
+        val checkedIndex = when {
+            currentTarget == PreferencesManager.NOTIFICATION_TARGET_WEBVIEW -> 0
+            currentTarget == PreferencesManager.NOTIFICATION_TARGET_EXTERNAL && currentPkg == null -> 1
+            else -> options.indexOfFirst { it.packageName == currentPkg }.coerceAtLeast(0)
+        }
+
+        MaterialAlertDialogBuilder(this, R.style.DiscordAlertDialogTheme)
+            .setTitle(R.string.choose_notification_target)
+            .setSingleChoiceItems(options.map { it.label }.toTypedArray(), checkedIndex) { dialog, which ->
+                val chosen = options[which]
+                val isWebview = chosen.packageName == WEBVIEW_SENTINEL
+                if (isWebview) {
+                    preferencesManager.setNotificationTarget(PreferencesManager.NOTIFICATION_TARGET_WEBVIEW)
+                    preferencesManager.setExternalAppPackage(null)
+                } else {
+                    preferencesManager.setNotificationTarget(PreferencesManager.NOTIFICATION_TARGET_EXTERNAL)
+                    preferencesManager.setExternalAppPackage(chosen.packageName)
+                }
+                Toast.makeText(this, getString(R.string.notification_target_saved, chosen.label), Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+                // External targets won't go through MainActivity's permission flow, so
+                // ask here while the user is still in the config screen.
+                if (!isWebview) ensureNotificationPermission()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun ensureNotificationPermission() {
+        if (NotificationManagerCompat.from(this).areNotificationsEnabled()) return
+
+        MaterialAlertDialogBuilder(this, R.style.DiscordAlertDialogTheme)
+            .setTitle(R.string.notification_permission_title)
+            .setMessage(R.string.notification_permission_rationale)
+            .setPositiveButton(R.string.grant) { _, _ -> requestNotificationPermissionOrSettings() }
+            .setNegativeButton(R.string.not_now, null)
+            .show()
+    }
+
+    private fun requestNotificationPermissionOrSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                return
+            }
+        }
+        openAppNotificationSettings()
+    }
+
+    private fun showNotificationPermissionDeniedDialog() {
+        MaterialAlertDialogBuilder(this, R.style.DiscordAlertDialogTheme)
+            .setTitle(R.string.notification_permission_title)
+            .setMessage(R.string.notification_permission_denied_message)
+            .setPositiveButton(R.string.open_settings) { _, _ -> openAppNotificationSettings() }
+            .setNegativeButton(R.string.close, null)
+            .show()
+    }
+
+    private fun openAppNotificationSettings() {
+        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        }
+        startActivity(intent)
+    }
+
     private fun showDistributorSelectionDialog() {
         val distributors = pushHelper.distributors.value ?: return
         if (distributors.isEmpty()) return

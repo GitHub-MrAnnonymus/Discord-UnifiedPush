@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Discord UnifiedPush Build Script
-# Builds and signs both client (webview) and proxy variants
+# Builds and signs a single APK; notification target (WebView vs external
+# Discord-compatible app) is configurable at runtime in-app.
 
 set -e
 
@@ -41,37 +42,30 @@ check_signing() {
 }
 
 # Build function
-build_variant() {
-    local variant=$1
-    local build_type=$2
+build_app() {
+    local build_type=$1
 
-    echo -e "${GREEN}Building ${variant}${build_type}...${NC}"
+    echo -e "${GREEN}Building ${build_type}...${NC}"
 
     cd "$ANDROID_DIR"
-    ./gradlew "assemble${variant}${build_type}" --no-daemon
+    ./gradlew "assemble${build_type}" --no-daemon
 
-    echo -e "${GREEN}${variant}${build_type} build complete!${NC}"
+    echo -e "${GREEN}${build_type} build complete!${NC}"
 }
 
-# Copy APKs to output directory
-copy_apks() {
+# Copy APK to output directory
+copy_apk() {
     local build_type=$1
     local build_type_lower=$(echo "$build_type" | tr '[:upper:]' '[:lower:]')
 
     mkdir -p "$OUTPUT_DIR"
 
-    # Copy client APK
-    if [[ -f "$ANDROID_DIR/app/build/outputs/apk/client/$build_type_lower/app-client-$build_type_lower.apk" ]]; then
-        cp "$ANDROID_DIR/app/build/outputs/apk/client/$build_type_lower/app-client-$build_type_lower.apk" \
-           "$OUTPUT_DIR/Discord-UnifiedPush-client-$build_type_lower.apk"
-        echo -e "${GREEN}Copied: Discord-UnifiedPush-client-$build_type_lower.apk${NC}"
-    fi
-
-    # Copy proxy APK
-    if [[ -f "$ANDROID_DIR/app/build/outputs/apk/proxy/$build_type_lower/app-proxy-$build_type_lower.apk" ]]; then
-        cp "$ANDROID_DIR/app/build/outputs/apk/proxy/$build_type_lower/app-proxy-$build_type_lower.apk" \
-           "$OUTPUT_DIR/Discord-UnifiedPush-proxy-$build_type_lower.apk"
-        echo -e "${GREEN}Copied: Discord-UnifiedPush-proxy-$build_type_lower.apk${NC}"
+    local src="$ANDROID_DIR/app/build/outputs/apk/$build_type_lower/app-$build_type_lower.apk"
+    if [[ -f "$src" ]]; then
+        cp "$src" "$OUTPUT_DIR/Discord-UnifiedPush-$build_type_lower.apk"
+        echo -e "${GREEN}Copied: Discord-UnifiedPush-$build_type_lower.apk${NC}"
+    else
+        echo -e "${YELLOW}APK not found at $src${NC}"
     fi
 }
 
@@ -95,12 +89,8 @@ main() {
 
     echo ""
 
-    # Build both variants
-    build_variant "Client" "$build_type"
-    build_variant "Proxy" "$build_type"
-
-    # Copy APKs to releases folder
-    copy_apks "$build_type"
+    build_app "$build_type"
+    copy_apk "$build_type"
 
     echo ""
     echo -e "${GREEN}=== Build Complete ===${NC}"
@@ -113,8 +103,8 @@ usage() {
     echo "Usage: $0 [debug|release]"
     echo ""
     echo "Options:"
-    echo "  debug   - Build debug APKs (no signing required)"
-    echo "  release - Build release APKs (requires signing configuration)"
+    echo "  debug   - Build debug APK (no signing required)"
+    echo "  release - Build release APK (requires signing configuration)"
     echo ""
     echo "Default: release"
 }

@@ -20,6 +20,10 @@
         <item name="colorOnSurface">@color/discord_text</item>
         <item name="colorPrimary">@color/blurple</item>
         <item name="colorOnPrimary">@color/white</item>
+        <item name="colorControlActivated">@color/blurple</item>
+        <item name="colorControlNormal">@color/discord_text</item>
+        <item name="android:colorControlActivated">@color/blurple</item>
+        <item name="android:colorControlNormal">@color/discord_text</item>
         <item name="android:background">@color/discord_grey</item>
         <item name="materialAlertDialogBodyTextStyle">@style/DiscordDialogTextStyle</item>
     </style>

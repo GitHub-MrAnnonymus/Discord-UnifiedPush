@@ -23,7 +23,19 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
-    
+
+    <!-- Needed on Android 11+ so we can enumerate apps that handle Discord links -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="discord.com" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="discordapp.com" />
+        </intent>
+    </queries>
+
     <application
         android:name=".DiscordApplication"
         android:allowBackup="true"

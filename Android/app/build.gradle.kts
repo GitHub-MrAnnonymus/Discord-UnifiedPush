@@ -28,6 +28,7 @@ android {
         versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        resValue("string", "app_name", "Discord")
     }
 
     // Signing config - reads from environment variables or keystore.properties
@@ -60,22 +61,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-        }
-    }
-
-    flavorDimensions += "variant"
-    productFlavors {
-        create("client") {
-            dimension = "variant"
-            applicationIdSuffix = ""
-            resValue("string", "app_name", "Discord")
-            buildConfigField("boolean", "IS_PROXY_BUILD", "false")
-        }
-        create("proxy") {
-            dimension = "variant"
-            applicationIdSuffix = ".proxy"
-            resValue("string", "app_name", "Discord Proxy")
-            buildConfigField("boolean", "IS_PROXY_BUILD", "true")
         }
     }
 
