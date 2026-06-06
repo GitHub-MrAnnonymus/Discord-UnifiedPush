@@ -33,6 +33,25 @@ class PreferencesManager(context: Context) {
     fun setCurrentDistributor(distributor: String) {
         prefs.edit { putString(KEY_CURRENT_DISTRIBUTOR, distributor) }
     }
+
+    fun getNotificationTarget(): Int {
+        return prefs.getInt(KEY_NOTIFICATION_TARGET, NOTIFICATION_TARGET_WEBVIEW)
+    }
+
+    fun setNotificationTarget(target: Int) {
+        prefs.edit { putInt(KEY_NOTIFICATION_TARGET, target) }
+    }
+
+    fun getExternalAppPackage(): String? {
+        return prefs.getString(KEY_EXTERNAL_APP_PACKAGE, null)
+    }
+
+    fun setExternalAppPackage(packageName: String?) {
+        prefs.edit {
+            if (packageName == null) remove(KEY_EXTERNAL_APP_PACKAGE)
+            else putString(KEY_EXTERNAL_APP_PACKAGE, packageName)
+        }
+    }
     
     fun setCurrentEndpoint(endpoint: String) {
         prefs.edit { putString(KEY_CURRENT_ENDPOINT, endpoint) }
@@ -83,9 +102,15 @@ class PreferencesManager(context: Context) {
         private const val KEY_NOTIFICATION_STYLE_SET = "notification_style_set"
         private const val KEY_CURRENT_DISTRIBUTOR = "current_distributor"
         private const val KEY_CURRENT_ENDPOINT = "current_endpoint"
+        private const val KEY_NOTIFICATION_TARGET = "notification_target"
+        private const val KEY_EXTERNAL_APP_PACKAGE = "external_app_package"
 
         // Notification style constants
         const val NOTIFICATION_STYLE_MULTI = 1 // Multiple notifications with content
         const val NOTIFICATION_STYLE_HYBRID = 2 // Single notification with content updates
+
+        // Notification target constants — where a tapped notification opens
+        const val NOTIFICATION_TARGET_WEBVIEW = 0 // Open in built-in WebView
+        const val NOTIFICATION_TARGET_EXTERNAL = 1 // Open in an external Discord-compatible app
     }
 }

@@ -187,14 +187,14 @@ class UnifiedPushHelper private constructor(context: Context) {
             return
         }
 
-        // Proxy build always opens Discord app, client build opens webview
-        val intent = if (BuildConfig.IS_PROXY_BUILD) {
-            createDiscordAppIntent(channelId, guildId)
-        } else {
-            Intent(getContext(), MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                data = buildDiscordUrl(channelId, guildId).toUri()
-            }
+        val intent = when (preferencesManager.getNotificationTarget()) {
+            PreferencesManager.NOTIFICATION_TARGET_EXTERNAL ->
+                createDiscordAppIntent(channelId, guildId, preferencesManager.getExternalAppPackage())
+            else ->
+                Intent(getContext(), MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    data = buildDiscordUrl(channelId, guildId).toUri()
+                }
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -334,18 +334,19 @@ class UnifiedPushHelper private constructor(context: Context) {
         }
     }
 
-    private fun createDiscordAppIntent(channelId: String, guildId: String): Intent {
-        // Discord uses HTTPS App Links, not discord:// scheme
-        // Build the same URL as buildDiscordUrl but force it to open in Discord app
+    private fun createDiscordAppIntent(channelId: String, guildId: String, packageName: String?): Intent {
+        // Discord forks all register the discord.com HTTPS app links — pinning a package
+        // routes to that fork; leaving it null lets the system show its app picker.
         val discordUrl = buildDiscordUrl(channelId, guildId)
 
-        android.util.Log.d(TAG, "Creating Discord app intent - channelId: '$channelId', guildId: '$guildId', URL: $discordUrl")
+        android.util.Log.d(TAG, "Creating Discord app intent - pkg: '$packageName', channelId: '$channelId', guildId: '$guildId', URL: $discordUrl")
 
         return Intent(Intent.ACTION_VIEW).apply {
             data = discordUrl.toUri()
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            // Force the Discord app to handle this link
-            setPackage("com.discord")
+            if (!packageName.isNullOrBlank()) {
+                setPackage(packageName)
+            }
         }
     }
 

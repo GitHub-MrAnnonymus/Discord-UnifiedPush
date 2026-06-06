@@ -9,3 +9,5 @@ Android/keystore.properties
 
 # Build outputs
 Android/app/build/
+
+releases/
