@@ -6,12 +6,21 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ "main" ]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'entrypoint.sh'
+      - 'supervisord.conf'
+      - 'requirements.txt'
+      - 'Linux backend/**'
+      - '.github/workflows/docker-publish.yml'
   schedule:
     # Run once a week on Sunday at 00:00 UTC
     - cron: '0 0 * * 0'
 
+
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/vesktop-unifiedpush
+  IMAGE_NAME: mrannonymus/vesktop-unifiedpush
 
 jobs:
   build:
@@ -51,9 +60,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
 
-      # On pull requests nothing is pushed, so the image is built for
-      # validation only. Otherwise each architecture is pushed untagged and
-      # the tags are attached to the merged manifest list below.
+
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v7
