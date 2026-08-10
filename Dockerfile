@@ -4,7 +4,16 @@
 # menci/archlinuxarm mirrors Arch Linux ARM, whose aarch64 repos carry every
 # package used below.
 FROM archlinux:latest AS base-amd64
+
 FROM menci/archlinuxarm:base AS base-arm64
+# pacman's download sandbox applies a Landlock ruleset, which the kernel
+# refuses inside a build container (EPERM). The official archlinux image
+# already ships DisableSandboxFilesystem for this reason; Arch Linux ARM
+# leaves it commented out, so enable it here for parity. DownloadUser=alpm
+# and the sandbox syscall filter both stay on. The grep makes a future base
+# image that drops the line fail loudly instead of silently regressing.
+RUN sed -i 's/^#\?DisableSandboxFilesystem$/DisableSandboxFilesystem/' /etc/pacman.conf && \
+    grep -qx 'DisableSandboxFilesystem' /etc/pacman.conf
 
 FROM base-${TARGETARCH}
 
