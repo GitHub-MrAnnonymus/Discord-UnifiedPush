@@ -90,6 +90,11 @@ If you prefer to run the notification forwarder on your existing Linux system:
 
 ## **Docker Features**
 
+The image is published as a multi-arch manifest for `linux/amd64` and `linux/arm64`, so
+the same `docker-compose.yml` works on an x86 server, an ARM VPS, or a Raspberry Pi 4/5
+running a 64-bit OS. Docker picks the right architecture automatically — 32-bit ARM
+(`armv7`) is not supported, since Vesktop ships no build for it.
+
 The Docker container provides:
 - Containerized Discord client (Vesktop) accessible via VNC/noVNC in a web browser
 - Notification forwarding to your mobile device via UnifiedPush

@@ -1,4 +1,12 @@
-FROM archlinux:latest
+# syntax=docker/dockerfile:1
+
+# Arch's official image is x86_64-only, so pick a per-architecture base.
+# menci/archlinuxarm mirrors Arch Linux ARM, whose aarch64 repos carry every
+# package used below.
+FROM archlinux:latest AS base-amd64
+FROM menci/archlinuxarm:base AS base-arm64
+
+FROM base-${TARGETARCH}
 
 # Update package database and install system dependencies
 RUN pacman -Syu --noconfirm && pacman -S --noconfirm \
@@ -51,8 +59,9 @@ RUN git clone https://github.com/novnc/noVNC.git /usr/share/novnc && \
 RUN useradd -m -s /bin/bash appuser
 
 # Download and install Vesktop from vencord.dev tar archive
+ARG TARGETARCH
 RUN mkdir -p /opt/vesktop && \
-    wget -q https://vencord.dev/download/vesktop/amd64/tar -O /tmp/vesktop.tar.gz && \
+    wget -q "https://vencord.dev/download/vesktop/${TARGETARCH}/tar" -O /tmp/vesktop.tar.gz && \
     tar -xzf /tmp/vesktop.tar.gz -C /opt/vesktop --strip-components=1 && \
     rm /tmp/vesktop.tar.gz && \
     chmod +x /opt/vesktop/vesktop && \
