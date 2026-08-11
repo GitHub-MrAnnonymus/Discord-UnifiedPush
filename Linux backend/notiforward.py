@@ -406,71 +406,172 @@ setup_logging(config.get("logging", True))
 
 logging.info(f"Loaded endpoint: {endpoint}")
 
-def extract_notification_content(text):
-    logging.debug(f"Extracting content from: {text}")
-    
-    # DBus notifications have a specific format:
-    # string "App Name"
-    # uint32 ID
-    # string "Icon"
-    # string "Title/Sender"
-    # string "Content/Message"
-    
-    # Extract all string fields
-    string_values = re.findall(r'string "([^"]*)"', text)
-    logging.debug(f"Found string values: {string_values}")
-    
-    # Default values
-    title = "Discord"
-    content = "New message"
-    sender = ""
-    
-    # For Discord/Vesktop notifications, we expect at least 5 string fields:
-    # 0: App name (System Notifications or similar)
-    # 1: Icon name
-    # 2: Sender/Title (usually the username)
-    # 3: Content (the message)
-    # The rest are extra fields
-    
-    if len(string_values) >= 4:
-        # The 3rd string value (index 2) is typically the sender/title
-        sender = string_values[2]
-        # The 4th string value (index 3) is the content
-        content = string_values[3]
-        
-        # Check for failed parsing cases and provide fallback message
-        if content.lower().strip() == "vesktop:" or content.lower().strip() == "vesktop":
-            content = "Failed to parse message content, check Discord"
-            logging.warning(f"Detected failed content parsing, using fallback message")
-        
-        logging.info(f"Extracted sender: '{sender}' and content: '{content}'")
-    
+# Notification parsing
+NOTIFY_ARG_COUNT = 8
+NOTIFY_ARG_APP_NAME = 0
+NOTIFY_ARG_APP_ICON = 2
+NOTIFY_ARG_SUMMARY = 3
+NOTIFY_ARG_BODY = 4
+
+# dbus-monitor never indents the header line of a message
+DBUS_HEADER_RE = re.compile(r'^(method call|method return|signal|error)\b')
+# A string value, optionally wrapped in a variant when it sits inside a hint
+DBUS_STRING_RE = re.compile(r'^(?:variant\s+)?string "')
+
+# Markers that identify a notification as coming from Discord or a Discord client.
+# Vesktop reports itself through the "desktop-entry" hint, so the raw message is
+# still checked for clients that use a generic app name.
+DISCORD_MARKERS = (
+    'dev.vencord.Vesktop',
+    'string "vesktop"',
+    'string "Discord"',
+    'string "discord"',
+)
+
+
+class NotifyMessageParser:
+    """Reassemble complete Notify calls from the dbus-monitor text stream.
+
+    dbus-monitor prints one value per line and closes every array, struct and
+    dict entry on a line of its own, so a message cannot be framed on "]": the
+    actions array, the hints array and any inline image-data byte array all end
+    that way. This parser tracks nesting depth instead and only emits a message
+    once all 8 Notify arguments have been collected back at depth 0.
+    """
+
+    def __init__(self):
+        self._reset()
+
+    def _reset(self):
+        self.active = False
+        self.args = []
+        self.lines = []
+        self.depth = 0
+        self._string_parts = None
+        self._string_capture = False
+
+    def feed(self, raw_line):
+        """Feed one line of output. Returns a parsed message once complete, else None."""
+        line = raw_line.rstrip('\n')
+
+        # String values may span several lines (Discord messages often do), so
+        # keep swallowing raw lines until the closing quote turns up.
+        if self._string_parts is not None:
+            self.lines.append(line)
+            if not line.endswith('"'):
+                self._string_parts.append(line)
+                return None
+            self._string_parts.append(line[:-1])
+            value = "\n".join(self._string_parts)
+            self._string_parts = None
+            if self._string_capture:
+                self.args.append(value)
+                return self._finish_if_complete()
+            return None
+
+        if DBUS_HEADER_RE.match(line):
+            # A new header always starts a new message; anything half parsed is
+            # incomplete output and gets dropped rather than merged.
+            if self.active:
+                logging.debug("Discarding incomplete Notify message")
+            self._reset()
+            self.active = 'member=Notify' in line
+            if self.active:
+                self.lines.append(line)
+            return None
+
+        if not self.active:
+            return None
+
+        stripped = line.strip()
+        if not stripped:
+            return None
+
+        self.lines.append(line)
+
+        if stripped in (']', ')', '}'):
+            self.depth = max(0, self.depth - 1)
+            return self._finish_if_complete()
+
+        string_match = DBUS_STRING_RE.match(stripped)
+        if string_match:
+            value = stripped[string_match.end():]
+            if not value.endswith('"'):
+                # Opening line of a multi-line string value
+                self._string_parts = [value]
+                self._string_capture = self.depth == 0
+                return None
+            if self.depth == 0:
+                self.args.append(value[:-1])
+            return self._finish_if_complete()
+
+        if self.depth == 0:
+            # Non string argument (uint32, int32, array); its position still counts
+            self.args.append(None)
+
+        if stripped.endswith(('[', '{', '(')):
+            self.depth += 1
+
+        return self._finish_if_complete()
+
+    def _finish_if_complete(self):
+        if not self.active or self.depth != 0 or len(self.args) < NOTIFY_ARG_COUNT:
+            return None
+
+        message = {
+            "app_name": self.args[NOTIFY_ARG_APP_NAME] or "",
+            "app_icon": self.args[NOTIFY_ARG_APP_ICON] or "",
+            "summary": self.args[NOTIFY_ARG_SUMMARY] or "",
+            "body": self.args[NOTIFY_ARG_BODY] or "",
+            "raw": "\n".join(self.lines),
+        }
+        self._reset()
+        logging.debug(f"Parsed Notify call: {message}")
+        return message
+
+
+def is_discord_notification(message):
+    """Check whether a parsed Notify call came from Discord or a Discord client"""
+    if 'discord' in message["app_name"].lower() or message["app_name"].lower() == 'vesktop':
+        return True
+    return any(marker in message["raw"] for marker in DISCORD_MARKERS)
+
+
+def extract_notification_content(message):
+    """Turn a parsed Notify call into the payload sent to the push endpoint"""
+    # summary holds the sender, body holds the message text
+    sender = message["summary"].strip()
+    content = message["body"].strip()
+
+    if not content:
+        # Notifications without a body carry everything in the summary
+        content, sender = sender, ""
+    if not content:
+        content = "New message"
+
+    logging.info(f"Extracted sender: '{sender}' and content: '{content}'")
+
     # Create response with JSON and text versions
     return {
         "json": json.dumps({
-            "title": title,
+            "title": "Discord",
             "content": content,
             "sender": sender,
             "channel_id": "",
             "guild_id": ""
         }),
-        "text": f"{sender}: {content}"
+        "text": f"{sender}: {content}" if sender else content
     }
 
 def should_ignore_notification(text, content):
     """Check if a notification should be ignored based on content or source"""
-    
+
     # Debug output for all notifications
     logging.info(f"Processing notification with content: '{content}'")
-    
-    # Only filter out exact matches for debug messages
-    if content.lower() == "urgency":
-        logging.info("Ignoring vesktop debug notification with content: 'urgency'")
-        return True
-        
-    # Don't filter test messages anymore, they might be legitimate
+
+    # Don't filter test messages, they might be legitimate
     # Allow empty content since it might just be a notification without text
-    
+
     return False
 
 def send_webpush_notification(endpoint, message, vapid_config=None):
@@ -571,89 +672,82 @@ def main():
         )
         
         logging.info("Listening for notifications...")
-        
-        # Store lines until we have a complete notification
-        current_notification = []
-        
+
+        # Feed lines to the parser until it reports a complete Notify call
+        parser = NotifyMessageParser()
+
         while True:
             line = process.stdout.readline()
             if not line:
                 logging.error("dbus-monitor process ended unexpectedly")
                 break
-                
-            line = line.strip()
-            if not line:
+
+            logging.debug(f"Raw line: {line.rstrip()}")
+            notification = parser.feed(line)
+            if notification is None:
                 continue
-                
-            logging.debug(f"Raw line: {line}")
-            current_notification.append(line)
-            
-            # Check if we have a complete notification
-            if line == "]" and len(current_notification) > 1:
-                full_notif = "\n".join(current_notification)
-                current_notification = []
-                
-                # Check for Discord or Vesktop
-                if ('dev.vencord.Vesktop' in full_notif or 
-                    'string "vesktop"' in full_notif or 
-                    'string "Discord"' in full_notif or
-                    'string "discord"' in full_notif):
-                    
-                    logging.info("Matched Discord notification!")
-                    notification_data = extract_notification_content(full_notif)
-                    json_content = notification_data["json"]
-                    text_content = notification_data["text"]
-                    
-                    # Parse the JSON to get the content
-                    parsed_json = json.loads(json_content)
-                    content = parsed_json.get("content", "")
-                    
-                    # Skip notification if it should be ignored
-                    if should_ignore_notification(full_notif, content):
-                        logging.info("Skipping ignored notification")
-                        continue
-                    
-                    # Check if this is a duplicate notification
-                    cache_key = f"{text_content}_{int(time.time()) // CACHE_TIMEOUT}"
-                    if cache_key in NOTIFICATION_CACHE:
-                        logging.info("Skipping duplicate notification")
-                        continue
-                        
-                    # Add to cache and clean old entries
-                    current_time = int(time.time())
-                    NOTIFICATION_CACHE.add(cache_key)
-                    NOTIFICATION_CACHE.difference_update(
-                        [k for k in NOTIFICATION_CACHE 
-                         if int(k.split('_')[1]) < current_time // CACHE_TIMEOUT - 1]
-                    )
-                    
-                    try:
-                        # Log more details about the message
-                        logging.info("===== PREPARING TO SEND NOTIFICATION =====")
-                        logging.info(f"Raw notification content: {text_content}")
-                        logging.info(f"JSON content: {json_content}")
-                        
-                        # Use the new VAPID-enabled web push function
-                        vapid_config = config.get("vapid")
-                        success = send_webpush_notification(endpoint, text_content, vapid_config)
-                        
-                        if success:
-                            logging.info("===== NOTIFICATION SENT SUCCESSFULLY =====")
-                        else:
-                            logging.error("===== NOTIFICATION SENDING FAILED =====")
-                            
-                    except Exception as e:
-                        logging.error(f"Failed to send notification: {e}")
-                        logging.error(traceback.format_exc())
-                        logging.error("===== NOTIFICATION SENDING FAILED WITH EXCEPTION =====")
-                        
-                        # As a last resort, try a very simple message
-                        try:
-                            logging.info("Attempting last resort simple message")
-                            send_regular_notification(endpoint, "New Discord message")
-                        except Exception as fallback_error:
-                            logging.error(f"Even simple fallback failed: {fallback_error}")
-                            
+
+            # Check for Discord or Vesktop
+            if not is_discord_notification(notification):
+                logging.debug(f"Ignoring notification from '{notification['app_name']}'")
+                continue
+
+            logging.info("Matched Discord notification!")
+            notification_data = extract_notification_content(notification)
+            json_content = notification_data["json"]
+            text_content = notification_data["text"]
+
+            # Parse the JSON to get the content
+            parsed_json = json.loads(json_content)
+            content = parsed_json.get("content", "")
+
+            # Skip notification if it should be ignored
+            if should_ignore_notification(notification["raw"], content):
+                logging.info("Skipping ignored notification")
+                continue
+
+            # Check if this is a duplicate notification
+            cache_key = f"{text_content}_{int(time.time()) // CACHE_TIMEOUT}"
+            if cache_key in NOTIFICATION_CACHE:
+                logging.info("Skipping duplicate notification")
+                continue
+
+            # Add to cache and clean old entries
+            current_time = int(time.time())
+            NOTIFICATION_CACHE.add(cache_key)
+            NOTIFICATION_CACHE.difference_update(
+                [k for k in NOTIFICATION_CACHE
+                 if int(k.split('_')[1]) < current_time // CACHE_TIMEOUT - 1]
+            )
+
+            try:
+                # Log more details about the message
+                logging.info("===== PREPARING TO SEND NOTIFICATION =====")
+                logging.info(f"Raw notification content: {text_content}")
+                logging.info(f"JSON content: {json_content}")
+
+                # Use the new VAPID-enabled web push function
+                vapid_config = config.get("vapid")
+                success = send_webpush_notification(endpoint, text_content, vapid_config)
+
+                if success:
+                    logging.info("===== NOTIFICATION SENT SUCCESSFULLY =====")
+                else:
+                    logging.error("===== NOTIFICATION SENDING FAILED =====")
+
+            except Exception as e:
+                logging.error(f"Failed to send notification: {e}")
+                logging.error(traceback.format_exc())
+                logging.error("===== NOTIFICATION SENDING FAILED WITH EXCEPTION =====")
+
+                # As a last resort, try a very simple message
+                try:
+                    logging.info("Attempting last resort simple message")
+                    send_regular_notification(endpoint, "New Discord message")
+                except Exception as fallback_error:
+                    logging.error(f"Even simple fallback failed: {fallback_error}")
+
+
     except Exception as e:
         logging.error(f"Failed to start or monitor notifications: {e}")
         logging.error(traceback.format_exc())
