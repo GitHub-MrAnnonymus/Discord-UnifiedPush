@@ -9,7 +9,7 @@ appcompat = "1.8.0"
 material = "1.14.0"
 activity = "1.13.0"
 constraintlayout = "2.2.2"
-unifiedpush = "3.3.4"
+unifiedpush = "3.3.5"
 preference = "1.2.1"
 tinkWebpush = "1.15.0"
 
